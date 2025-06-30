@@ -1,0 +1,47 @@
+{
+	"name": "Footer AI Dev Container",
+	"build": { 
+		"context": "..",
+		"dockerfile": "../Dockerfile"
+	},
+
+	"runArgs": [
+		"--runtime=nvidia",
+		"--gpus=all",
+		"--shm-size=10g",
+		"--network", "host"
+	  ],
+
+	"containerEnv": {
+		"http_proxy": "${localEnv:http_proxy}",
+		"https_proxy": "${localEnv:https_proxy}",
+		"no_proxy": "${localEnv:no_proxy}"
+	  },
+
+	"postCreateCommand": "git config --global user.email ornot2008@yahoo.com && git config --global user.name ornot-devcontainer",  
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-toolsai.jupyter",
+				"shd101wyy.markdown-preview-enhanced",
+				"yzhang.markdown-all-in-one",
+				"bierner.markdown-checkbox",
+				"bierner.markdown-mermaid",
+				"DavidAnson.vscode-markdownlint",
+				"ms-python.vscode-pylance",
+				"ms-python.python",
+				"ms-python.debugpy",
+				"ms-python.vscode-python-envs",
+				"marp-team.marp-vscode",
+				"ms-python.black-formatter",
+				"mhutchie.git-graph",
+				"RSIP-Vision.nvidia-smi-plus",
+				"ms-azuretools.vscode-containers"
+			]
+		}
+	},
+
+
+
+}

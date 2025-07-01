@@ -1,5 +1,5 @@
 # Use an official Python image as the base
-FROM python:3.12-slim
+FROM rayproject/ray:latest-gpu
 
 # Set the working directory inside the container
 WORKDIR /app

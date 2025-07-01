@@ -1,5 +1,5 @@
 # Use an official Python image as the base
-FROM rayproject/ray:latest-gpu
+FROM rayproject/ray:latest-py311-gpu
 
 # Set the working directory inside the container
 WORKDIR /app

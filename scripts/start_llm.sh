@@ -1,0 +1,1 @@
+python3 -m vllm.entrypoints.openai.api_server --model /workspaces/openevolve/models/Qwen2-7B-Instruct --host 0.0.0.0 --port 8000

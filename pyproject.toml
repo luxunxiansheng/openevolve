@@ -18,7 +18,8 @@ dependencies = [
     "numpy>=1.22.0",
     "tqdm>=4.64.0",
     "flask",
-    "vllm[triton]"
+    "vllm[triton]",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]

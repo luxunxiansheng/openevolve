@@ -3,20 +3,15 @@ max_iterations: 100
 checkpoint_interval: 10
 log_level: "INFO"
 
-# LLM configuration
+
 llm:
-  primary_model: "google/gemini-2.0-flash-001"
-  # primary_model: "llama3.1-8b"
-  primary_model_weight: 0.8
-  secondary_model: "anthropic/claude-3.7-sonnet"
-  # secondary_model: "llama-4-scout-17b-16e-instruct"
-  secondary_model_weight: 0.2
-  api_base: "https://openrouter.ai/api/v1"
-  # api_base: "https://api.cerebras.ai/v1"
+  primary_model: "/workspaces/openevolve/models/Qwen2-7B-Instruct"
+  primary_model_weight: 1.0
+  api_base: "http://localhost:8000/v1/"
+  api_key: null
   temperature: 0.7
   top_p: 0.95
-  max_tokens: 8192
-  timeout: 600 
+  max_tokens: 4096
 
 # Prompt configuration
 prompt:
@@ -50,7 +45,7 @@ evaluator:
   cascade_evaluation: true
   cascade_thresholds: [0.5, 0.8]
   parallel_evaluations: 4
-  use_llm_feedback: false
+  use_llm_feedback: true
 
 # Evolution settings
 diff_based_evolution: false

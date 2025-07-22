@@ -1,0 +1,38 @@
+{
+  "name": "OpenEvolve Dev Container",
+  "build": {
+    "context": "..",
+    "dockerfile": "Dockerfile"
+  },
+  "runArgs": [
+    "--runtime=nvidia",
+    "--gpus=all",
+    "--shm-size=10g",
+    "--network",
+    "host"
+  ],
+  "containerEnv": {
+    "http_proxy": "${localEnv:http_proxy}",
+    "https_proxy": "${localEnv:https_proxy}",
+    "no_proxy": "${localEnv:no_proxy}"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-azuretools.vscode-docker",
+        "RSIP-Vision.nvidia-smi-plus",
+        "mhutchie.git-graph",
+        "ms-python.black-formatter"
+      ]
+    }
+  },
+  
+  "mounts": [
+    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/LLM-Models,type=bind,consistency=cached"
+  ]
+}

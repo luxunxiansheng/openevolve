@@ -2,7 +2,7 @@
   "name": "OpenEvolve Dev Container",
   "build": {
     "context": "..",
-    "dockerfile": "Dockerfile"
+    "dockerfile": "../Dockerfile"
   },
   "runArgs": [
     "--runtime=nvidia",

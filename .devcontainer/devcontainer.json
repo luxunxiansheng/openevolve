@@ -34,8 +34,7 @@
   
   "mounts": [
     "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/LLM-Models,type=bind,consistency=cached"
-  ],
-  "postCreateCommand": "pip install vllm"
-
+  ]
+  
   
 }

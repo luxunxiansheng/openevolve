@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml>=6.0",
     "numpy>=1.22.0",
     "tqdm>=4.64.0",
+    "vllm>=0.10.0",
     "flask",
 ]
 
@@ -52,3 +53,8 @@ include = ["openevolve*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "openevolve._version.__version__"}
+
+# Configure a PyPI mirror
+[[tool.uv.index]]
+name = "pypi"
+url = "https://mirrors.aliyun.com/pypi/simple/"

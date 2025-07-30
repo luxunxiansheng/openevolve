@@ -33,7 +33,7 @@
   },
   
   "mounts": [
-    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/LLM-Models,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/app/LLM-Models,type=bind,consistency=cached"
   ]
   
   

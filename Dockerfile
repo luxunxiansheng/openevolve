@@ -4,19 +4,29 @@ FROM python:3.12-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && . $HOME/.cargo/env
+
+# Add uv to PATH
+ENV PATH="/root/.cargo/bin:$PATH"
 
 # Copy the project files into the container
 COPY . /app
 
-# Install Python dependencies
-RUN pip install --root-user-action=ignore -e .
 
-RUN pip install vllm 
+RUN pip install uv -i https://mirrors.aliyun.com/pypi/simple/
+
+
+RUN uv pip install --system -e . -i https://mirrors.aliyun.com/pypi/simple/
+
+
+
 
 # Expose the project directory as a volume
 VOLUME ["/app"]

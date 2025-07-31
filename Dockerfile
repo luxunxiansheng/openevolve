@@ -9,9 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
+    ca-certificates \
+    bash \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && . $HOME/.cargo/env
+    && curl -LsSf https://astral.sh/uv/install.sh | bash
 
 # Add uv to PATH
 ENV PATH="/root/.cargo/bin:$PATH"

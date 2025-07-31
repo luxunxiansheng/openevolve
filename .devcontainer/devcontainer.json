@@ -33,7 +33,7 @@
   },
   
   "mounts": [
-    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/app/LLM-Models,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/openevolve/LLM-Models,type=bind,consistency=cached"
   ]
   
   

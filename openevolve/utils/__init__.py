@@ -3,11 +3,11 @@ Utilities module initialization
 """
 
 from openevolve.utils.async_utils import (
-    TaskPool,
     gather_with_concurrency,
     retry_async,
     run_in_executor,
 )
+from openevolve.utils.ray_task_pool import RayTaskPool
 from openevolve.utils.code_utils import (
     apply_diff,
     calculate_edit_distance,
@@ -27,7 +27,7 @@ from openevolve.utils.metrics_utils import (
 )
 
 __all__ = [
-    "TaskPool",
+    "RayTaskPool",
     "gather_with_concurrency",
     "retry_async",
     "run_in_executor",

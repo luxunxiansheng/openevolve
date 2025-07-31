@@ -22,7 +22,8 @@ from openevolve.database import ProgramDatabase
 from openevolve.evaluation_result import EvaluationResult
 from openevolve.database import ProgramDatabase
 from openevolve.llm.ensemble import LLMEnsemble
-from openevolve.utils.async_utils import TaskPool, run_in_executor
+from openevolve.utils.async_utils import run_in_executor
+from openevolve.utils.ray_task_pool import RayTaskPool, RAY_AVAILABLE
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.format_utils import format_metrics_safe
 
@@ -52,7 +53,11 @@ class Evaluator:
         self.database = database
 
         # Create a task pool for parallel evaluation
-        self.task_pool = TaskPool(max_concurrency=config.parallel_evaluations)
+        if RAY_AVAILABLE:
+            self.task_pool = RayTaskPool(max_concurrency=config.parallel_evaluations)
+        else:
+            logger.warning("Ray not available, falling back to sequential evaluation")
+            self.task_pool = None
 
         # Set up evaluation function if file exists
         self._load_evaluation_function()
@@ -685,9 +690,32 @@ class Evaluator:
         Returns:
             List of metric dictionaries
         """
-        tasks = [
-            self.task_pool.create_task(self.evaluate_program, program_code, program_id)
-            for program_code, program_id in programs
-        ]
+        if not self.task_pool:
+            # Sequential evaluation fallback
+            results = []
+            for program_code, program_id in programs:
+                result = await self.evaluate_program(program_code, program_id)
+                results.append(result)
+            return results
 
-        return await asyncio.gather(*tasks)
+        # Use RayTaskPool for parallel evaluation
+        # Create a sync wrapper for the evaluation function
+        def sync_evaluate_program(program_code: str, program_id: str) -> Dict[str, float]:
+            """Synchronous wrapper for evaluate_program to work with Ray"""
+            import asyncio
+
+            # Create new event loop for this worker
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(self.evaluate_program(program_code, program_id))
+            finally:
+                loop.close()
+
+        # Submit all tasks to Ray
+        for program_code, program_id in programs:
+            self.task_pool.submit(sync_evaluate_program, program_code, program_id)
+
+        # Get results from Ray
+        results = self.task_pool.get_results()
+        return results

@@ -42,7 +42,9 @@ class LLMConfig(LLMModelConfig):
     """Configuration for LLM models"""
 
     # API configuration
-    api_base: str = "https://api.openai.com/v1"
+    api_base: str = ""
+    api_key: Optional[str] = None
+
 
     # Generation parameters
     system_message: Optional[str] = "system_message"
@@ -58,13 +60,14 @@ class LLMConfig(LLMModelConfig):
     # n-model configuration for evolution LLM ensemble
     models: List[LLMModelConfig] = field(
         default_factory=lambda: [
-            LLMModelConfig(name="gpt-4o-mini", weight=0.8),
-            LLMModelConfig(name="gpt-4o", weight=0.2),
+            LLMModelConfig(name="Qwen3-14B-AWQ", weight=1.0),
         ]
     )
 
     # n-model configuration for evaluator LLM ensemble
-    evaluator_models: List[LLMModelConfig] = field(default_factory=lambda: [])
+    evaluator_models: List[LLMModelConfig] = field(default_factory=lambda: [
+        LLMModelConfig(name="Qwen3-14B-AWQ", weight=1.0),
+    ])
 
     # Backwardes compatibility with primary_model(_weight) options
     primary_model: str = None
@@ -243,7 +246,7 @@ class Config:
 
     # Evolution settings
     diff_based_evolution: bool = True
-    max_code_length: int = 10000
+    max_code_length: int = 100000
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Config":
@@ -368,12 +371,6 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Config:
         config = Config.from_yaml(config_path)
     else:
         config = Config()
-
-        # Use environment variables if available
-        api_key = os.environ.get("OPENAI_API_KEY")
-        api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-
-        config.llm.update_model_params({"api_key": api_key, "api_base": api_base})
 
     # Make the system message available to the individual models, in case it is not provided from the prompt sampler
     config.llm.update_model_params({"system_message": config.prompt.system_message})

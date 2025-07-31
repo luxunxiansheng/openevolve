@@ -11,6 +11,12 @@ llm:
       weight: 1.0
       api_key: "empty"
       api_base: "http://localhost:8010/v1"
+  
+  evaluator_models:
+    - name: "Qwen3-14B-AWQ"
+      weight: 1.0
+      api_key: "empty"
+      api_base: "http://localhost:8010/v1"
 
   temperature: 0.7
   temperature: 0.7

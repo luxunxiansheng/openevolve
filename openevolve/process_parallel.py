@@ -82,8 +82,8 @@ def _lazy_init_worker_components():
     global _worker_prompt_sampler
     
     if _worker_llm_ensemble is None:
-        from openevolve.llm.ensemble import LLMEnsemble
-        _worker_llm_ensemble = LLMEnsemble(_worker_config.llm.models)
+        from openevolve.llm.ensemble import EnsembleLLM
+        _worker_llm_ensemble = EnsembleLLM(_worker_config.llm.models)
     
     if _worker_prompt_sampler is None:
         from openevolve.prompt.sampler import PromptSampler
@@ -91,11 +91,11 @@ def _lazy_init_worker_components():
     
     if _worker_evaluator is None:
         from openevolve.evaluator import Evaluator
-        from openevolve.llm.ensemble import LLMEnsemble
+        from openevolve.llm.ensemble import EnsembleLLM
         from openevolve.prompt.sampler import PromptSampler
         
         # Create evaluator-specific components
-        evaluator_llm = LLMEnsemble(_worker_config.llm.evaluator_models)
+        evaluator_llm = EnsembleLLM(_worker_config.llm.evaluator_models)
         evaluator_prompt = PromptSampler(_worker_config.prompt)
         evaluator_prompt.set_templates("evaluator_system_message")
         

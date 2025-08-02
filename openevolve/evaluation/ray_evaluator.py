@@ -1,5 +1,5 @@
 # we will use ray job client to submit the evaluation job 
-
+import re
 import time
 import logging
 
@@ -44,7 +44,9 @@ class RayPythonEvaluationController(Evaluator):
             logger.warning("No runtime environment provided, using default settings.")
         
         logger.info(f"Submitting evaluation job with Python file: {python_file_path} and program ID: {program_id} with runtime environment: {runtime_env}")
-           
+       
+        # Check if job with same ID already exists and handle it
+        self._handle_existing_job(program_id)
 
         entrypoint="python " + str(python_file_path)
 
@@ -90,7 +92,6 @@ class RayPythonEvaluationController(Evaluator):
         """
         Extract EvaluationResult from evaluator's default log output.
         """
-        import re
         metrics = {}
         artifacts = {}
 
@@ -121,6 +122,44 @@ class RayPythonEvaluationController(Evaluator):
                 continue
 
         return EvaluationResult(metrics=metrics, artifacts=artifacts)
+
+    def _handle_existing_job(self, job_id: str) -> None:
+        """
+        Check if a job with the given ID already exists and handle it appropriately.
+        Cancel/stop running jobs, or delete completed ones.
+        """
+        try:
+            # Check if job exists
+            existing_status = self.job_client.get_job_status(job_id)
+            logger.info(f"Found existing job {job_id} with status: {existing_status}")
+            
+            if existing_status in [JobStatus.PENDING, JobStatus.RUNNING]:
+                logger.info(f"Stopping existing job {job_id} before submitting new one.")
+                self.job_client.stop_job(job_id)
+                
+                # Wait for job to stop
+                max_wait_time = 30  # seconds
+                wait_time = 0
+                while wait_time < max_wait_time:
+                    status = self.job_client.get_job_status(job_id)
+                    if status in [JobStatus.STOPPED, JobStatus.FAILED, JobStatus.SUCCEEDED]:
+                        logger.info(f"Job {job_id} stopped with status: {status}")
+                        break
+                    time.sleep(1)
+                    wait_time += 1
+                else:
+                    logger.warning(f"Job {job_id} did not stop within {max_wait_time} seconds")
+            
+            # Delete the job regardless of its final status to allow reuse of the submission_id
+            logger.info(f"Deleting existing job {job_id} to reuse submission_id")
+            self.job_client.delete_job(job_id)
+            
+            # Wait a moment for deletion to complete
+            time.sleep(1)
+                
+        except Exception as e:
+            # Job might not exist, which is fine for new submissions
+            logger.debug(f"No existing job found with ID {job_id}: {e}")
 
 
 

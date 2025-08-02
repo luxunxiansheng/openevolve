@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 from openevolve.config import Config, load_config
 from openevolve.database import Program, ProgramDatabase
 from openevolve.evaluator import Evaluator
-from openevolve.llm.ensemble import LLMEnsemble
+from openevolve.llm.ensemble import EnsembleLLM
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.process_parallel import ProcessParallelController
 from openevolve.utils.code_utils import (
@@ -138,8 +138,8 @@ class OpenEvolve:
                 self.file_extension = f".{self.file_extension}"
 
         # Initialize components
-        self.llm_ensemble = LLMEnsemble(self.config.llm.models)
-        self.llm_evaluator_ensemble = LLMEnsemble(self.config.llm.evaluator_models)
+        self.llm_ensemble = EnsembleLLM(self.config.llm.models)
+        self.llm_evaluator_ensemble = EnsembleLLM(self.config.llm.evaluator_models)
 
         self.prompt_sampler = PromptSampler(self.config.prompt)
         self.evaluator_prompt_sampler = PromptSampler(self.config.prompt)

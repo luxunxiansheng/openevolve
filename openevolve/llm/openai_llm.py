@@ -4,13 +4,11 @@ OpenAI API interface for LLMs
 
 import asyncio
 import logging
-import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import openai
 
-from openevolve.config import LLMConfig
-from openevolve.llm.base import LLMInterface
+from openevolve.llm.large_language_model import LLMInterface
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +38,6 @@ class OpenAILLM(LLMInterface):
             base_url=self.api_base,
         )
 
-        # Only log unique models to reduce duplication
-        if not hasattr(logger, "_initialized_models"):
-            logger._initialized_models = set()
-
-        if self.model not in logger._initialized_models:
-            logger.info(f"Initialized OpenAI LLM with model: {self.model}")
-            logger._initialized_models.add(self.model)
 
     async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text from a prompt"""

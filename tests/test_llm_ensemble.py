@@ -3,7 +3,7 @@ Tests for LLMEnsemble in openevolve.llm.ensemble
 """
 
 import unittest
-from openevolve.llm.ensemble import LLMEnsemble
+from openevolve.llm.ensemble import EnsembleLLM
 from openevolve.config import LLMModelConfig
 
 
@@ -13,7 +13,7 @@ class TestLLMEnsemble(unittest.TestCase):
             LLMModelConfig(name="a", weight=0.0),
             LLMModelConfig(name="b", weight=1.0),
         ]
-        ensemble = LLMEnsemble(models)
+        ensemble = EnsembleLLM(models)
         # Should always sample model 'b'
         for _ in range(10):
             self.assertEqual(ensemble._sample_model().model, "b")
@@ -23,7 +23,7 @@ class TestLLMEnsemble(unittest.TestCase):
             LLMModelConfig(name="b", weight=0.3),
             LLMModelConfig(name="c", weight=0.3),
         ]
-        ensemble = LLMEnsemble(models)
+        ensemble = EnsembleLLM(models)
         # Should sample both models. Track sampled models in a set
         sampled_models = set()
         for _ in range(1000):

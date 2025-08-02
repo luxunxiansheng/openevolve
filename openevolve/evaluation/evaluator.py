@@ -56,7 +56,7 @@ class Evaluator(ABC):
     All evaluators should inherit from this class and implement the evaluate method.
     """
     @abstractmethod 
-    def evaluate(self,**kwargs) -> EvaluationResult:
+    async def evaluate(self,**kwargs) -> EvaluationResult:
         pass # evaluate and log the metrics and artifacts of the given program code.
 
     def log_metrics(self, metrics: Dict[str, float]) -> None:

@@ -21,7 +21,7 @@ from openevolve.config import EvaluatorConfig
 from openevolve.database import ProgramDatabase
 from openevolve.evaluation_result import EvaluationResult
 from openevolve.database import ProgramDatabase
-from openevolve.llm.ensemble import LLMEnsemble
+from openevolve.llm.ensemble import EnsembleLLM
 from openevolve.utils.async_utils import TaskPool, run_in_executor
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.format_utils import format_metrics_safe
@@ -41,7 +41,7 @@ class Evaluator:
         self,
         config: EvaluatorConfig,
         evaluation_file: str,
-        llm_ensemble: Optional[LLMEnsemble] = None,
+        llm_ensemble: Optional[EnsembleLLM] = None,
         prompt_sampler: Optional[PromptSampler] = None,
         database: Optional[ProgramDatabase] = None,
     ):

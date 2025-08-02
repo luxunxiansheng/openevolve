@@ -8,7 +8,7 @@ class HelloWorldEvaluator(Evaluator):
     A simple evaluator that returns a fixed evaluation result.
     This is just for demonstration purposes.
     """
-    def evaluate(self, **kwargs) -> EvaluationResult:
+    async def evaluate(self, **kwargs) -> EvaluationResult:
 
 
         
@@ -22,8 +22,10 @@ class HelloWorldEvaluator(Evaluator):
         return EvaluationResult(metrics=metrics, artifacts=artifacts)
 
 
+import asyncio
+
 if __name__ == "__main__":
     evaluator = HelloWorldEvaluator()
-    evaluator.evaluate(program_code="I am a simple evaluator that does nothing.")
+    asyncio.run(evaluator.evaluate(program_code="I am a simple evaluator that does nothing."))
     
        

@@ -2,8 +2,8 @@
 LLM module initialization
 """
 
-from openevolve.llm.base import LLMInterface
-from openevolve.llm.ensemble import LLMEnsemble
-from openevolve.llm.openai import OpenAILLM
+from openevolve.llm.large_language_model import LLMInterface
+from openevolve.llm.ensemble import EnsembleLLM
+from openevolve.llm.openai_llm import OpenAILLM
 
-__all__ = ["LLMInterface", "OpenAILLM", "LLMEnsemble"]
+__all__ = ["LLMInterface", "OpenAILLM", "EnsembleLLM"]

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from openevolve.database import Program, ProgramDatabase
 from openevolve.config import Config
 from openevolve.evaluator import Evaluator
-from openevolve.llm.ensemble import LLMEnsemble
+from openevolve.llm.ensemble import EnsembleLLM
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.code_utils import (
     apply_diff,
@@ -36,7 +36,7 @@ async def run_iteration_with_shared_db(
     config: Config,
     database: ProgramDatabase,
     evaluator: Evaluator,
-    llm_ensemble: LLMEnsemble,
+    llm_ensemble: EnsembleLLM,
     prompt_sampler: PromptSampler,
 ):
     """

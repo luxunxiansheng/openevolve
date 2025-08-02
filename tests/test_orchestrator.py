@@ -16,7 +16,7 @@ class TestOrchestrator(unittest.TestCase):
         runtime_env = {"working_dir": "/workspaces/openevolve/",}  # Adjust as needed
 
         # Uncomment the line below to run the actual evaluation (ensure the script exists)
-        result = self.orchestrator.evaluate(python_file_path=python_file_path, runtime_env=runtime_env, program_id="test_program_1")
+        result = self.orchestrator.evaluate(python_file_path=python_file_path, runtime_env=runtime_env, program_id="test_program_2")
         print(result)
         
 

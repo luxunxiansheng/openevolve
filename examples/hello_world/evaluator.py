@@ -1,14 +1,14 @@
 
 
-from openevolve.evaluation.evaluator import EvaluationResult, Evaluator
+from openevolve.evaluation.evaluator import EvaluationResult, RayEvaluator
 
 
-class HelloWorldEvaluator(Evaluator):
+class HelloWorldEvaluator(RayEvaluator):
     """
     A simple evaluator that returns a fixed evaluation result.
     This is just for demonstration purposes.
     """
-    def evaluate(self, program_code: str, **kwargs) -> EvaluationResult:
+    def run(self, program_code: str, **kwargs) -> EvaluationResult:
         """
         Evaluate the given program code and return a fixed EvaluationResult.
         """
@@ -21,6 +21,6 @@ class HelloWorldEvaluator(Evaluator):
 
 if __name__ == "__main__":
     evaluator = HelloWorldEvaluator()
-    evaluator.run("I am a simple evaluator that does nothing.")
+    evaluator.evaluate("I am a simple evaluator that does nothing.")
     
        

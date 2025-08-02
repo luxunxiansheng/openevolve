@@ -9,7 +9,12 @@ from openevolve.evaluation.evaluator import EvaluationResult
 
 logger = logging.getLogger(__name__)
 
-class RayEvaluationOrchestrator:
+class RayEvaluationController:
+    """ Controller for evaluating Python programs using Ray Job Submission Client.
+    This class handles the submission of evaluation jobs to a Ray cluster and monitors their status.
+    It also extracts evaluation results from the job logs.
+    """ 
+
     def __init__(self,
                  ray_cluster_head_ip:str="http//:localhost:8265",
                  ) -> None:
@@ -18,6 +23,7 @@ class RayEvaluationOrchestrator:
 
     def evaluate_python(self, 
                         python_file_path: str,
+                        program_id: str,
                         runtime_env: dict)-> EvaluationResult:
         
         """        Submit a Python evaluation job to the Ray cluster.
@@ -33,6 +39,7 @@ class RayEvaluationOrchestrator:
         submission_id = self.job_client.submit_job(
             entrypoint="python " + python_file_path,
             runtime_env=runtime_env,
+            submission_id=program_id,  # Use program_id as the job ID
             
         )    
 

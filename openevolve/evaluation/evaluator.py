@@ -50,19 +50,29 @@ class EvaluationResult:
         return sum(self.get_artifact_size(key) for key in self.artifacts.keys())
 
 
-
 class Evaluator(ABC):
     """
     Abstract base class for evaluators.
     All evaluators should inherit from this class and implement the evaluate method.
     """
+    @abstractmethod 
+    def evaluate(self, program_code: str, **kwargs) -> EvaluationResult:
+        pass # evaluate and log the metrics and artifacts of the given program code.
 
-    def run(self, program_code: str, **kwargs) -> EvaluationResult:
+
+
+class RayEvaluator(Evaluator):
+    """
+    Abstract base class for evaluators.
+    All evaluators should inherit from this class and implement the evaluate method.
+    """
+
+    def evaluate(self, program_code: str, **kwargs) -> EvaluationResult:
         """ 
            evaluate and log the metrics and artifacts of the given program code.
         """
 
-        result = self.evaluate(program_code, **kwargs)
+        result = self.run(program_code, **kwargs)
 
         # Log metrics
         if result.metrics:
@@ -75,7 +85,7 @@ class Evaluator(ABC):
         return result     
 
     @abstractmethod
-    def evaluate(self, program_code:str, **kwargs) -> EvaluationResult:
+    def run(self, program_code:str, **kwargs) -> EvaluationResult:
 
         """
         Evaluate the given program code and return an EvaluationResult.

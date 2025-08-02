@@ -18,7 +18,7 @@ class OpenAILLM(LLMInterface):
 
     def __init__(
         self,
-        model_cfg: Optional[dict] = None,
+        model_cfg: Dict[str, Any] 
     ):
         self.model = model_cfg.name
         self.system_message = model_cfg.system_message

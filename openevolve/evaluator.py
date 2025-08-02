@@ -21,7 +21,7 @@ from openevolve.config import EvaluatorConfig
 from openevolve.database import ProgramDatabase
 from openevolve.evaluation_result import EvaluationResult
 from openevolve.database import ProgramDatabase
-from openevolve.llm.ensemble import EnsembleLLM
+from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.utils.async_utils import TaskPool, run_in_executor
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.format_utils import format_metrics_safe

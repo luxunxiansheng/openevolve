@@ -82,7 +82,7 @@ def _lazy_init_worker_components():
     global _worker_prompt_sampler
     
     if _worker_llm_ensemble is None:
-        from openevolve.llm.ensemble import EnsembleLLM
+        from openevolve.llm.llm_ensemble import EnsembleLLM
         _worker_llm_ensemble = EnsembleLLM(_worker_config.llm.models)
     
     if _worker_prompt_sampler is None:
@@ -91,7 +91,7 @@ def _lazy_init_worker_components():
     
     if _worker_evaluator is None:
         from openevolve.evaluator import Evaluator
-        from openevolve.llm.ensemble import EnsembleLLM
+        from openevolve.llm.llm_ensemble import EnsembleLLM
         from openevolve.prompt.sampler import PromptSampler
         
         # Create evaluator-specific components

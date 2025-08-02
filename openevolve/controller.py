@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 from openevolve.config import Config, load_config
 from openevolve.database import Program, ProgramDatabase
 from openevolve.evaluator import Evaluator
-from openevolve.llm.ensemble import EnsembleLLM
+from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.process_parallel import ProcessParallelController
 from openevolve.utils.code_utils import (

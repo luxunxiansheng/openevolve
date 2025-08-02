@@ -4,7 +4,7 @@ import re
 import traceback
 
 from openevolve.evaluation.evaluator import Evaluator, EvaluationResult
-from openevolve.llm.large_language_model import LLMInterface
+from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 

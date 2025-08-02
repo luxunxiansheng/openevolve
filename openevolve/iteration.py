@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from openevolve.database import Program, ProgramDatabase
 from openevolve.config import Config
 from openevolve.evaluator import Evaluator
-from openevolve.llm.ensemble import EnsembleLLM
+from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.code_utils import (
     apply_diff,

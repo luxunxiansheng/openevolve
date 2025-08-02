@@ -1,12 +1,12 @@
 import unittest
 
 # Adjust the import path as needed
-from openevolve.evaluation.ray_evaluation_controller import RayEvaluationController
+from openevolve.evaluation.ray_evaluator import RayPythonEvaluationController
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
                 
-        self.orchestrator = RayEvaluationController(ray_cluster_head_ip="http://localhost:8265")
+        self.orchestrator = RayPythonEvaluationController(ray_cluster_head_ip="http://localhost:8265")
 
 
     def test_evaluate_python(self):
@@ -16,7 +16,7 @@ class TestOrchestrator(unittest.TestCase):
         runtime_env = {"working_dir": "/workspaces/openevolve/",}  # Adjust as needed
 
         # Uncomment the line below to run the actual evaluation (ensure the script exists)
-        result = self.orchestrator.evaluate_python(python_file_path, runtime_env)
+        result = self.orchestrator.evaluate(python_file_path=python_file_path, runtime_env=runtime_env, program_id="test_program_1")
         print(result)
         
 

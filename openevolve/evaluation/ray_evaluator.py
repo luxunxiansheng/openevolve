@@ -5,39 +5,51 @@ import logging
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from openevolve.evaluation.evaluator import EvaluationResult
+from openevolve.evaluation.evaluator import EvaluationResult, Evaluator
 
 logger = logging.getLogger(__name__)
 
-class RayEvaluationController:
+
+class RayPythonEvaluationController(Evaluator):
     """ Controller for evaluating Python programs using Ray Job Submission Client.
     This class handles the submission of evaluation jobs to a Ray cluster and monitors their status.
     It also extracts evaluation results from the job logs.
     """ 
-
     def __init__(self,
                  ray_cluster_head_ip:str="http//:localhost:8265",
                  ) -> None:
 
         self.job_client = JobSubmissionClient(ray_cluster_head_ip)
-
-    def evaluate_python(self, 
-                        python_file_path: str,
-                        program_id: str,
-                        runtime_env: dict)-> EvaluationResult:
         
-        """        Submit a Python evaluation job to the Ray cluster.
-        Args:
-            python_file_path (str): Path to the Python file to be executed.
-            runtime_env (dict): Runtime environment configuration for the job.
-        Returns:
-            str: Job ID of the submitted job.
-        """ 
 
-        logger.info(f"Submitting evaluation job with Python file: {python_file_path}")
+
+    def evaluate(self, **kwargs) -> EvaluationResult:
+        """ 
+           evaluate and log the metrics and artifacts of the given program code.
+        """
+
+        python_file_path = kwargs.get("python_file_path")
+        program_id = kwargs.get("program_id")
+        runtime_env = kwargs.get("runtime_env", {}) 
+
+        if not python_file_path:
+            raise ValueError("python_file_path must be provided for evaluation.")
+        elif not python_file_path.endswith(".py"):
+            raise ValueError("python_file_path must point to a valid Python file.")
+        
+        if not program_id:
+            raise ValueError("program_id must be provided for evaluation.")
+        
+        if not runtime_env:
+            logger.warning("No runtime environment provided, using default settings.")
+        
+        logger.info(f"Submitting evaluation job with Python file: {python_file_path} and program ID: {program_id} with runtime environment: {runtime_env}")
+           
+
+        entrypoint="python " + str(python_file_path)
 
         submission_id = self.job_client.submit_job(
-            entrypoint="python " + python_file_path,
+            entrypoint=entrypoint,
             runtime_env=runtime_env,
             submission_id=program_id,  # Use program_id as the job ID
             

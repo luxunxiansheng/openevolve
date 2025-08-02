@@ -56,48 +56,10 @@ class Evaluator(ABC):
     All evaluators should inherit from this class and implement the evaluate method.
     """
     @abstractmethod 
-    def evaluate(self, program_code: str, **kwargs) -> EvaluationResult:
+    def evaluate(self,**kwargs) -> EvaluationResult:
         pass # evaluate and log the metrics and artifacts of the given program code.
 
-
-
-class RayEvaluator(Evaluator):
-    """
-    Abstract base class for evaluators.
-    All evaluators should inherit from this class and implement the evaluate method.
-    """
-
-    def evaluate(self, program_code: str, **kwargs) -> EvaluationResult:
-        """ 
-           evaluate and log the metrics and artifacts of the given program code.
-        """
-
-        result = self.run(program_code, **kwargs)
-
-        # Log metrics
-        if result.metrics:
-            self._log_metrics(result.metrics)
-
-        # Log artifacts
-        if result.has_artifacts():
-            self._log_artifact(result.artifacts)
-  
-        return result     
-
-    @abstractmethod
-    def run(self, program_code:str, **kwargs) -> EvaluationResult:
-
-        """
-        Evaluate the given program code and return an EvaluationResult.
-
-        :param program_code: The code to evaluate.
-        :param kwargs: Additional parameters for evaluation.
-        :return: An EvaluationResult containing metrics and optional artifacts.
-        """
-        pass
-    
-    
-    def _log_metrics(self, metrics: Dict[str, float]) -> None:
+    def log_metrics(self, metrics: Dict[str, float]) -> None:
         """
         Log the metrics during evaluation. The defalut implementation is to print the metrics.
         :param metrics: A dictionary containing metric names and their values.
@@ -109,7 +71,7 @@ class RayEvaluator(Evaluator):
         
     
     
-    def _log_artifact(self, artifacts:Dict[str, Union[str, bytes]]) -> None:
+    def log_artifact(self, artifacts:Dict[str, Union[str, bytes]]) -> None:
         """
         Log an artifact during evaluation. The default implementation is to print the artifact 
 
@@ -125,8 +87,6 @@ class RayEvaluator(Evaluator):
                 print(f"Artifact {key}: {len(value)} bytes")
             else:
                 print(f"Artifact {key}: {str(value)}")
-
-
 
 
 

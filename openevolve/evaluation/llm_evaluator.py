@@ -1,7 +1,12 @@
-from typing import Any
-from openevolve.evaluation.evaluator import EvaluationResult, Evaluator
-from ..llm.large_language_model import LLMInterface
+import json
+import logging
+import re
+import traceback
 
+from openevolve.evaluation.evaluator import Evaluator, EvaluationResult
+from openevolve.llm.large_language_model import LLMInterface
+
+logger = logging.getLogger(__name__)
 
 class LLMEvaluator(Evaluator):
     """
@@ -24,13 +29,14 @@ class LLMEvaluator(Evaluator):
         """
         self.llm_client = llm_client
         self.prompt_sampler = prompt_sampler
+       
 
     async def evaluate(self, **kwargs) -> EvaluationResult:
         """
         Evaluate the provided Python code using the LLM.
         
         Args:
-            **kwargs: Arbitrary keyword arguments, including 'python_code' which is the code to evaluate.
+            **kwargs: Arbitrary keyword arguments, including 'program_code' which is the code to evaluate.
         
         Returns:
             EvaluationResult: The result of the evaluation containing metrics and artifacts.
@@ -54,13 +60,63 @@ class LLMEvaluator(Evaluator):
                 prompt["system"], [{"role": "user", "content": prompt["user"]}]
             )
             
+            # Extract JSON from response
+            artifacts = {}
+            avg_metrics = {}
+            json_pattern = r"```json\n(.*?)\n```"
+            
+            for i, response in enumerate(responses):
+                try:
+                    json_match = re.search(json_pattern, response, re.DOTALL)
 
+                    if json_match:
+                        json_str = json_match.group(1)
+                    else:
+                        # Try to extract JSON directly
+                        json_str = response
+                        # Remove non-JSON parts
+                        start_idx = json_str.find("{")
+                        end_idx = json_str.rfind("}") + 1
+                        if start_idx >= 0 and end_idx > start_idx:
+                            json_str = json_str[start_idx:end_idx]
+
+                    # Parse JSON
+                    result = json.loads(json_str)
+
+                    # Separate metrics (numeric) from artifacts (non-numeric)
+                    metrics = {}
+                    for key, value in result.items():
+                        if isinstance(value, (int, float)):
+                            metrics[key] = value
+                        else:
+                            artifacts[key] = value
+                    
+                    # Weight of the model in the ensemble (default to 1.0 as ensemble is not defined)
+                    weight = self.llm_client.weights[i] if self.llm_client.weights else 1.0
+
+                    # Average the metrics
+                    for name, value in metrics.items():
+                        if name in avg_metrics:
+                            avg_metrics[name] += value * weight
+                        else:
+                            avg_metrics[name] = value * weight
+                            
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Error parsing JSON from response {i}: {str(e)}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Error processing response {i}: {str(e)}")
+                    continue
+                    
+            return EvaluationResult(
+                metrics=avg_metrics,
+                artifacts=artifacts,
             )
-        
+            
         except Exception as e:
-            raise RuntimeError(f"Failed to evaluate program {program_id}: {str(e)}")
-
-        
+            logger.error(f"Error in LLM evaluation: {str(e)}")
+            traceback.print_exc()
+            return EvaluationResult(metrics={}, artifacts={})
 
 
 

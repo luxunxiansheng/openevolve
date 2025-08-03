@@ -1,9 +1,9 @@
 
 
-from openevolve.evaluation.evaluator import EvaluationResult, Evaluator
+from openevolve.evaluation.critic import EvaluationResult, Critic
 
 
-class HelloWorldEvaluator(Evaluator):
+class HelloWorldEvaluator(Critic):
     """
     A simple evaluator that returns a fixed evaluation result.
     This is just for demonstration purposes.

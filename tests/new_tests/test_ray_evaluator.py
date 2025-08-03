@@ -1,12 +1,12 @@
 import unittest
 
 # Adjust the import path as needed
-from openevolve.evaluation.ray_evaluator import RayPythonEvaluationController
+from openevolve.evaluation.ray_critic import RayPythonCritic
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
                 
-        self.orchestrator = RayPythonEvaluationController(ray_cluster_head_ip="http://localhost:8265")
+        self.orchestrator = RayPythonCritic(ray_cluster_head_ip="http://localhost:8265")
 
 
     def test_evaluate_python(self):

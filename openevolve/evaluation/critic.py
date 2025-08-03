@@ -50,7 +50,7 @@ class EvaluationResult:
         return sum(self.get_artifact_size(key) for key in self.artifacts.keys())
 
 
-class Evaluator(ABC):
+class Critic(ABC):
     """
     Abstract base class for evaluators.
     All evaluators should inherit from this class and implement the evaluate method.

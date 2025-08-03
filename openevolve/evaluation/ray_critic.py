@@ -5,12 +5,12 @@ import logging
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from openevolve.evaluation.evaluator import EvaluationResult, Evaluator
+from openevolve.evaluation.critic import EvaluationResult, Critic
 
 logger = logging.getLogger(__name__)
 
 
-class RayPythonEvaluationController(Evaluator):
+class RayPythonCritic(Critic):
     """ Controller for evaluating Python programs using Ray Job Submission Client.
     This class handles the submission of evaluation jobs to a Ray cluster and monitors their status.
     It also extracts evaluation results from the job logs.

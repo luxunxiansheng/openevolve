@@ -1,7 +1,7 @@
 import unittest
 import asyncio
-from openevolve.evaluation.llm_evaluator import LLMEvaluator
-from openevolve.evaluation.evaluator import EvaluationResult
+from openevolve.evaluation.llm_critic import LLMCritic
+from openevolve.evaluation.critic import EvaluationResult
 from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.llm.config import LLMConfig
 from openevolve.prompt.sampler import PromptSampler
@@ -15,7 +15,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
         self.llm_client = EnsembleLLM([LLMConfig()])
         self.prompt_sampler = PromptSampler(PromptConfig())
         self.prompt_sampler.set_templates("evaluator_system_message")
-        self.evaluator = LLMEvaluator(self.llm_client, self.prompt_sampler)
+        self.evaluator = LLMCritic(self.llm_client, self.prompt_sampler)
 
     async def test_evaluate_returns_evaluation_result(self):
         # Read the hello_world initial program code

@@ -3,12 +3,12 @@ import logging
 import re
 import traceback
 
-from openevolve.evaluation.evaluator import Evaluator, EvaluationResult
+from openevolve.evaluation.critic import Critic, EvaluationResult
 from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 
-class LLMEvaluator(Evaluator):
+class LLMCritic(Critic):
     """
     Evaluator that uses a large language model (LLM) to evaluate Python code.
     This evaluator can be used to assess the quality of code, provide feedback,

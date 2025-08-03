@@ -4,11 +4,10 @@ Prompt sampling for OpenEvolve
 
 import logging
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 from openevolve.config import PromptConfig
 from openevolve.prompt.templates import TemplateManager
-from openevolve.utils.format_utils import format_metrics_safe
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)

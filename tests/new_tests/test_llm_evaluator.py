@@ -12,15 +12,20 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
         # Use a local/test config for LLM and PromptSampler
         self.llm_client = OpenAILLM(LLMConfig())
         self.prompt_sampler = PromptSampler(PromptConfig())
+        self.prompt_sampler.set_templates("evaluator_system_message")
         self.evaluator = LLMEvaluator(self.llm_client, self.prompt_sampler)
 
     async def test_evaluate_returns_evaluation_result(self):
         # Read the hello_world initial program code
-        with open("examples/hello_world/initial_program.py", "r") as f:
+        with open("/workspaces/openevolve/examples/circle_packing_with_artifacts/initial_program.py", "r") as f:
             program_code = f.read()
         # This will actually call the LLM, so the test may require a running LLM API or will fail gracefully
         try:
+            # Debug: print the prompt that will be sent
+            prompt = self.prompt_sampler.build_prompt(current_program=program_code, template_key="evaluation")
+            print(f"Prompt sent to LLM:\nSystem: {prompt['system']}\nUser: {prompt['user']}")
             result = await self.evaluator.evaluate(program_code=program_code, program_id="test_id")
+            print(f"Evaluation Result: {result}")
             self.assertIsInstance(result, EvaluationResult)
             # The following checks are best-effort, as real LLM output may vary
             self.assertIsInstance(result.metrics, dict)

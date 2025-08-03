@@ -5,7 +5,7 @@ import logging
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from openevolve.evaluation.critic import EvaluationResult, Critic
+from openevolve.critique.critic import EvaluationResult, Critic
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,8 @@ class RayPythonCritic(Critic):
 
 
     def evaluate(self, **kwargs) -> EvaluationResult:
-        """ 
-           evaluate and log the metrics and artifacts of the given program code.
+        """
+           Critic method to evaluate and log the metrics and artifacts of the given program code.
         """
 
         python_file_path = kwargs.get("python_file_path")
@@ -90,7 +90,7 @@ class RayPythonCritic(Critic):
 
     def _extract_evaluation_result_from_logs(self, log_output: str) -> EvaluationResult:
         """
-        Extract EvaluationResult from evaluator's default log output.
+        Extract EvaluationResult from critic's default log output.
         """
         metrics = {}
         artifacts = {}

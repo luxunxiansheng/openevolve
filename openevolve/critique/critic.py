@@ -52,8 +52,8 @@ class EvaluationResult:
 
 class Critic(ABC):
     """
-    Abstract base class for evaluators.
-    All evaluators should inherit from this class and implement the evaluate method.
+    Abstract base class for critics.
+    All critics should inherit from this class and implement the evaluate method.
     """
     @abstractmethod 
     async def evaluate(self,**kwargs) -> EvaluationResult:

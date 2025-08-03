@@ -3,26 +3,25 @@ import logging
 import re
 import traceback
 
-from openevolve.evaluation.critic import Critic, EvaluationResult
+from openevolve.critique.critic import Critic, EvaluationResult
 from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 
 class LLMCritic(Critic):
     """
-    Evaluator that uses a large language model (LLM) to evaluate Python code.
-    This evaluator can be used to assess the quality of code, provide feedback,
+    Critic that uses a large language model (LLM) to evaluate Python code.
+    This critic can be used to assess the quality of code, provide feedback,
     and suggest improvements based on LLM capabilities.
 
-    It's now regarded as a Agent 
-   
+    It's now regarded as an Agent.
     """
 
     def __init__(self, 
                  llm_client: LLMInterface,
                  prompt_sampler) -> None:
         """
-        Initialize the LLM evaluator with a client that interacts with the LLM.
+        Initialize the LLM critic with a client that interacts with the LLM.
         
         Args:
             llm_client (Any): An instance of a client that can communicate with the LLM.

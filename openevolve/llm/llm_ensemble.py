@@ -7,6 +7,8 @@ import logging
 import random
 from typing import Dict, List
 
+
+
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.config import LLMModelConfig
@@ -52,7 +54,7 @@ class EnsembleLLM(LLMInterface):
             )
             logger._ensemble_logged = True
         
-        self.generate_all_with_context = False
+
 
     async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text using a randomly selected model based on weights"""
@@ -83,7 +85,7 @@ class EnsembleLLM(LLMInterface):
         tasks = [self.generate(prompt, **kwargs) for prompt in prompts]
         return await asyncio.gather(*tasks)
 
-    async def generate_all_with_context(
+    async def generate_with_context(
         self, system_message: str, messages: List[Dict[str, str]], **kwargs
     ) -> str:
         """Generate text using a all available models and average their returned metrics"""
@@ -92,18 +94,8 @@ class EnsembleLLM(LLMInterface):
             for model in self.ensemble_models
         ]
         results = await asyncio.gather(*tasks)
+        
+        return results
+        
 
-        # Combine results from all models
-        combined_result = "\n".join(results)
-        logger.info(f"Combined result from all models: {combined_result}")
-        return combined_result
-
-    
-    async def generate_with_context(
-        self, system_message: str, messages: List[Dict[str, str]], **kwargs
-    ) -> str:
-        """Generate text using a system message and conversational context"""
-        if self.generate_all_with_context:
-            return await self.generate_all_with_context(system_message, messages, **kwargs)
-        else:
-            return await self.generate_one_with_context(system_message, messages, **kwargs)
+  

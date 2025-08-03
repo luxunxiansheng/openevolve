@@ -6,11 +6,13 @@ from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.llm.config import LLMConfig
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.config import PromptConfig
+from openevolve.llm.llm_ensemble import EnsembleLLM
 
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        # Use a local/test config for LLM and PromptSampler
-        self.llm_client = OpenAILLM(LLMConfig())
+        # Use a local/test config for LLMEnsemble and PromptSampler
+        
+        self.llm_client = EnsembleLLM([LLMConfig()])
         self.prompt_sampler = PromptSampler(PromptConfig())
         self.prompt_sampler.set_templates("evaluator_system_message")
         self.evaluator = LLMEvaluator(self.llm_client, self.prompt_sampler)

@@ -1,7 +1,7 @@
 import unittest
 
 # Adjust the import path as needed
-from openevolve.critique.ray_critic import RayPythonCritic
+from openevolve.critic.ray_critic import RayPythonCritic
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):

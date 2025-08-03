@@ -149,5 +149,5 @@ evaluator:
   # Note: distributed evaluation is not yet implemented
 
   # LLM-based feedback (experimental)
-  use_llm_feedback: false             # Use LLM to evaluate code quality
+  use_llm_feedback: true             # Use LLM to evaluate code quality
   llm_feedback_weight: 0.1            # Weight for LLM feedback in final score

@@ -57,7 +57,7 @@ evaluator:
   cascade_evaluation: true
   cascade_thresholds: [0.5, 0.75]
   parallel_evaluations: 4
-  use_llm_feedback: false
+  use_llm_feedback: true
 
 # Evolution settings
 diff_based_evolution: false  # Use full rewrites instead of diffs

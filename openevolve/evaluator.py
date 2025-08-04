@@ -193,14 +193,7 @@ class Evaluator:
                         eval_result.metrics[f"llm_{name}"] = value * self.config.llm_feedback_weight
 
                 # Store artifacts if enabled and present
-                if (
-                    artifacts_enabled
-                    and (
-                        eval_result.has_artifacts()
-                        or (llm_eval_result and llm_eval_result.has_artifacts())
-                    )
-                    and program_id
-                ):
+                if (artifacts_enabled and (eval_result.has_artifacts() or (llm_eval_result and llm_eval_result.has_artifacts())) and program_id):
                     if program_id not in self._pending_artifacts:
                         self._pending_artifacts[program_id] = {}
 

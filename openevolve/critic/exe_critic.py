@@ -1,4 +1,4 @@
-# we will use ray job client to submit the evaluation job 
+# we will use ray job client to submit the evaluation job
 import os
 import re
 import tempfile
@@ -12,54 +12,55 @@ from openevolve.critic.critic import EvaluationResult, Critic
 logger = logging.getLogger(__name__)
 
 
-class RayPythonCritic(Critic):
-    """ Controller for evaluating Python programs using Ray Job Submission Client.
+class PythonExecutionCritic(Critic):
+    """Controller for evaluating Python programs using Ray Job Submission Client.
     This class handles the submission of evaluation jobs to a Ray cluster and monitors their status.
     It also extracts evaluation results from the job logs.
-    """ 
-    def __init__(self,
-                 ray_cluster_head_ip:str="http//:localhost:8265",
-                 ) -> None:
+    """
+
+    def __init__(
+        self,
+        ray_cluster_head_ip: str = "http//:localhost:8265",
+    ) -> None:
 
         self.job_client = JobSubmissionClient(ray_cluster_head_ip)
-        
-
 
     def evaluate(self, **kwargs) -> EvaluationResult:
         """
-           Critic method to evaluate and log the metrics and artifacts of the given program code.
+        Critic method to evaluate and log the metrics and artifacts of the given program code.
         """
 
-        python_code = kwargs.get("python_code","")
+        python_code = kwargs.get("python_code", "")
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            script_path = os.path.join(temp_dir, "dynamic_job_script.py")
-            with open(script_path, "w") as f:
+            python_file_path = os.path.join(temp_dir, "dynamic_job_script.py")
+            with open(python_file_path, "w") as f:
                 f.write(python_code)
-   
+
             program_id = kwargs.get("program_id")
- 
-            runtime_env = kwargs.get("runtime_env", {}) 
-            
+            runtime_env = kwargs.get("runtime_env", {})
+            runtime_env.setdefault("working_dir", temp_dir)
+
             if not program_id:
                 raise ValueError("program_id must be provided for evaluation.")
-            
+
             if not runtime_env:
                 logger.warning("No runtime environment provided, using default settings.")
-            
-            logger.info(f"Submitting evaluation job with Python file: {python_file_path} and program ID: {program_id} with runtime environment: {runtime_env}")
-        
+
+            logger.info(
+                f"Submitting evaluation job with Python file: {python_file_path} and program ID: {program_id} with runtime environment: {runtime_env}"
+            )
+
             # Check if job with same ID already exists and handle it
             self._handle_existing_job(program_id)
 
-            entrypoint="python " + str(python_file_path)
+            entrypoint = "python " + str(python_file_path)
 
             submission_id = self.job_client.submit_job(
                 entrypoint=entrypoint,
                 runtime_env=runtime_env,
                 submission_id=program_id,  # Use program_id as the job ID
-                
-            )    
+            )
 
             start_time = time.time()
             while True:
@@ -83,7 +84,7 @@ class RayPythonCritic(Critic):
                 elapsed_time = time.time() - start_time
                 if elapsed_time > 3600:  # Timeout after 1 hour
                     logger.error(f"Job {submission_id} timed out after 1 hour.")
-                    break           
+                    break
 
                 time.sleep(5)  # Check the job status every 5 seconds
 
@@ -136,11 +137,11 @@ class RayPythonCritic(Critic):
             # Check if job exists
             existing_status = self.job_client.get_job_status(job_id)
             logger.info(f"Found existing job {job_id} with status: {existing_status}")
-            
+
             if existing_status in [JobStatus.PENDING, JobStatus.RUNNING]:
                 logger.info(f"Stopping existing job {job_id} before submitting new one.")
                 self.job_client.stop_job(job_id)
-                
+
                 # Wait for job to stop
                 max_wait_time = 30  # seconds
                 wait_time = 0
@@ -153,19 +154,14 @@ class RayPythonCritic(Critic):
                     wait_time += 1
                 else:
                     logger.warning(f"Job {job_id} did not stop within {max_wait_time} seconds")
-            
+
             # Delete the job regardless of its final status to allow reuse of the submission_id
             logger.info(f"Deleting existing job {job_id} to reuse submission_id")
             self.job_client.delete_job(job_id)
-            
+
             # Wait a moment for deletion to complete
             time.sleep(1)
-                
+
         except Exception as e:
             # Job might not exist, which is fine for new submissions
             logger.debug(f"No existing job found with ID {job_id}: {e}")
-
-
-
-
-

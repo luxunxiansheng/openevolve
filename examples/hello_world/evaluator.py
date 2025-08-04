@@ -1,6 +1,6 @@
 
 
-from openevolve.critique.critic import EvaluationResult, Critic
+from openevolve.critic.critic import EvaluationResult, Critic
 
 
 class HelloWorldEvaluator(Critic):

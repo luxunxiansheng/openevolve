@@ -3,7 +3,7 @@ import logging
 import re
 import traceback
 
-from openevolve.critique.critic import Critic, EvaluationResult
+from openevolve.critic.critic import Critic, EvaluationResult
 from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)

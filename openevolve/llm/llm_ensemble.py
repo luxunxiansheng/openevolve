@@ -8,10 +8,10 @@ import random
 from typing import Dict, List
 
 
-
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.config import LLMModelConfig
+from openevolve.llm.config import LLMConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class EnsembleLLM(LLMInterface):
     """Ensemble of LLMs"""
 
-    def __init__(self, ensemble_models_cfg: List[LLMModelConfig]):
+    def __init__(self, ensemble_models_cfg: List[LLMConfig]):
         self.ensemble_models_cfg = ensemble_models_cfg
 
         # Initialize models from the configuration assume the models are OpenAI compatible

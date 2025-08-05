@@ -6,7 +6,7 @@ import logging
 import random
 from typing import Any, Dict, List, Optional, Union
 
-from openevolve.config import PromptConfig
+from openevolve.prompt.config import PromptConfig
 from openevolve.prompt.templates import TemplateManager
 from openevolve.utils.metrics_utils import safe_numeric_average
 

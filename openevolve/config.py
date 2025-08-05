@@ -9,6 +9,13 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
+from .database.config import DatabaseConfig
+
+from .prompt.config import PromptConfig
+
+from .llm.config import LLMConfig
+from .evaluator.config import EvaluatorConfig
+
 @dataclass
 class Config:
     """Master configuration for OpenEvolve"""

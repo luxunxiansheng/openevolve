@@ -6,7 +6,8 @@ from openevolve.prompt.sampler import PromptSampler
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.llm.llm_ensemble import EnsembleLLM
-from openevolve.config import DatabaseConfig, PromptConfig
+from openevolve.database.config import DatabaseConfig
+from openevolve.prompt.config import PromptConfig
 from openevolve.llm.config import LLMConfig
 
 

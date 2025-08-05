@@ -20,12 +20,12 @@ class PythonExecutionCritic(Critic):
 
     def __init__(
         self,
-        ray_cluster_head_ip: str = "http//:localhost:8265",
+        ray_cluster_head_ip: str = "http//127.0.0.1:8265",
     ) -> None:
 
         self.job_client = JobSubmissionClient(ray_cluster_head_ip)
 
-    async def asyncevaluate(self, **kwargs) -> EvaluationResult:
+    async def evaluate(self, **kwargs) -> EvaluationResult:
         """
         Critic method to evaluate and log the metrics and artifacts of the given program code.
         """

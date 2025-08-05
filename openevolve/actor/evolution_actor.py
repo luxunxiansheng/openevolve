@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 class EvolutionActor(Actor):
     def __init__(self,
-
                     database: ProgramDatabase,  
                     prompt_sampler: PromptSampler,
                     llm_actor_client: LLMInterface,
@@ -52,9 +51,7 @@ class EvolutionActor(Actor):
 
     async def act(self, **kwargs) -> Result:
         """
-        Perform the evolution action based on the provided parameters.
-        
-        
+        Perform the evolution action based on the provided parameters.        
         """
         try:
             # Sample parent and inspirations from database
@@ -86,7 +83,7 @@ class EvolutionActor(Actor):
             iteration_start = time.time()
 
             # Generate code modification
-            llm_response = await self.llm_client.generate_with_context(
+            llm_response = await self.llm_actor_client.generate_with_context(
                 system_message=prompt["system"],
                 messages=[{"role": "user", "content": prompt["user"]}],
             )

@@ -87,6 +87,13 @@ class EvolutionActor(Actor):
                 system_message=prompt["system"],
                 messages=[{"role": "user", "content": prompt["user"]}],
             )
+
+            logger.debug(f"LLM response for iteration {self.iteration}: {llm_response}")
+
+            #TODO : we are using llm ensemble, so we need to handle the response accordingly 
+            llm_response = llm_response[0] 
+            
+
                     # Parse the response
             if self.diff_based_evolution:
                 diff_blocks = extract_diffs(llm_response)

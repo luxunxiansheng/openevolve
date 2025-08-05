@@ -1,7 +1,10 @@
 import logging
 import time
 import uuid
+from openevolve import evaluation_result
 from openevolve.actor.actor import Actor, Result
+from openevolve.critic.exe_critic import PythonExecutionCritic
+from openevolve.critic.llm_critic import LLMCritic
 from openevolve.database import Program, ProgramDatabase
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.prompt.sampler import PromptSampler
@@ -15,27 +18,36 @@ from openevolve.utils.code_utils import (
 
 logger = logging.getLogger(__name__)
 
-
 class EvolutionActor(Actor):
     def __init__(self,
 
                     database: ProgramDatabase,  
                     prompt_sampler: PromptSampler,
-                    llm_client: LLMInterface,
+                    llm_actor_client: LLMInterface,
+                    llm_critic: LLMCritic,
+                    exe_critic: PythonExecutionCritic,
                     language: str="python",
                     iteration: int=100,
                     diff_based_evolution: bool=False,
                     max_code_length: int= 2048,
+                    use_llm_critic: bool=True,
+                    llm_feedback_weight: float=0.1,
+                    artifacts_enabled: bool=True,
                  ) -> None:
 
         self.database = database
         self.prompt_sampler = prompt_sampler
-        self.llm_client = llm_client
+        self.llm_actor_client = llm_actor_client
+        self.llm_critic = llm_critic
+        self.exe_critic = exe_critic
         self.language = language
         self.iteration = iteration
         self.diff_based_evolution = diff_based_evolution
         self.max_code_length = max_code_length  
-
+        self.artifacts= {}
+        self.use_llm_critic = use_llm_critic
+        self.llm_feedback_weight = llm_feedback_weight
+        self.artifacts_enabled = artifacts_enabled
 
 
     async def act(self, **kwargs) -> Result:
@@ -108,13 +120,33 @@ class EvolutionActor(Actor):
                 )
                 return None
 
-            # Evaluate the child program
+            
             child_id = str(uuid.uuid4())
-            result.child_metrics = await evaluator.evaluate_program(child_code, child_id)
 
-            # Handle artifacts if they exist
-            artifacts = evaluator.get_pending_artifacts(child_id)
 
+            # Evaluate the child code
+            exe_evaluation_result = await self.exe_critic.evaluate(python_code=child_code,program_id=child_id)
+            llm_evaluation_result = None
+            if self.use_llm_critic:
+                llm_evaluation_result = await self.llm_critic.evaluate(
+                    program_code=child_code, program_id=child_id
+                )
+
+                for name, value in llm_evaluation_result.metrics.items():
+                    exe_evaluation_result.metrics[f'llm_{name}'] = value * self.llm_feedback_weight
+
+            if self.artifacts_enabled and  exe_evaluation_result.has_artifacts():
+                    self.artifacts.update(exe_evaluation_result.artifacts)
+                    logger.debug(f"Artifacts from execution critic: {exe_evaluation_result.artifacts}")
+
+            if llm_evaluation_result and llm_evaluation_result.has_artifacts():
+                self.artifacts.update(llm_evaluation_result.artifacts)
+                logger.debug(f"Artifacts from LLM critic: {llm_evaluation_result.artifacts}")
+
+
+            result.child_metrics = exe_evaluation_result.metrics
+
+                                 
             # Create a child program
             result.child_program = Program(
                 id=child_id,
@@ -132,7 +164,7 @@ class EvolutionActor(Actor):
 
             result.prompt = prompt
             result.llm_response = llm_response
-            result.artifacts = artifacts
+            result.artifacts = self.artifacts
             result.iteration_time = time.time() - iteration_start
             result.iteration = self.iteration
 

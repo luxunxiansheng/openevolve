@@ -25,7 +25,7 @@ class PythonExecutionCritic(Critic):
 
         self.job_client = JobSubmissionClient(ray_cluster_head_ip)
 
-    def evaluate(self, **kwargs) -> EvaluationResult:
+    async def asyncevaluate(self, **kwargs) -> EvaluationResult:
         """
         Critic method to evaluate and log the metrics and artifacts of the given program code.
         """

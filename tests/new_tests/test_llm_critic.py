@@ -5,7 +5,7 @@ from openevolve.critic.critic import EvaluationResult
 from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.llm.config import LLMConfig
 from openevolve.prompt.sampler import PromptSampler
-from openevolve.config import PromptConfig
+from openevolve.prompt.config import PromptConfig
 from openevolve.llm.llm_ensemble import EnsembleLLM
 
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):

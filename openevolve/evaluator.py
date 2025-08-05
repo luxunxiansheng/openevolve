@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import traceback
 
-from openevolve.config.evaluator_config import EvaluatorConfig
+from op
 from openevolve.database.database import ProgramDatabase
 from openevolve.evaluation_result import EvaluationResult
 from openevolve.database.database import ProgramDatabase

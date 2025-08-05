@@ -13,10 +13,8 @@ from dataclasses import asdict, dataclass, field, fields
 # FileLock removed - no longer needed with threaded parallel processing
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-import numpy as np
 
-from openevolve.config import DatabaseConfig
-from openevolve.utils.code_utils import calculate_edit_distance
+from openevolve.database.config import DatabaseConfig
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)

@@ -13,7 +13,7 @@ os.environ["OPENAI_API_KEY"] = "test"
 
 from openevolve.config import Config
 from openevolve.controller import OpenEvolve
-from openevolve.database import Program, ProgramDatabase
+from openevolve.database.database import Program, ProgramDatabase
 
 
 class TestIterationCounting(unittest.TestCase):

@@ -13,7 +13,7 @@ import time
 os.environ["OPENAI_API_KEY"] = "test"
 
 from openevolve.config import Config, DatabaseConfig, EvaluatorConfig, LLMConfig, PromptConfig
-from openevolve.database import Program, ProgramDatabase
+from openevolve.database.database import Program, ProgramDatabase
 from openevolve.process_parallel import ProcessParallelController, SerializableResult
 
 

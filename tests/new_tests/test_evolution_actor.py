@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 from openevolve.actor.evolution_actor import EvolutionActor
-from openevolve.database import ProgramDatabase, Program
+from openevolve.database.database import ProgramDatabase, Program
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.exe_critic import PythonExecutionCritic
@@ -53,7 +53,7 @@ class TestEvolutionActor(unittest.TestCase):
             result = await self.actor.act()
             self.assertIsNotNone(result)
             self.assertIsNotNone(result.child_program)
-            from openevolve.database import Program
+            from openevolve.database.database import Program
 
             self.assertIsInstance(result.child_program, Program)
             self.assertEqual(result.child_program.code, "def foo():\n    return 42")

@@ -5,7 +5,7 @@ import logging
 import time
 from dataclasses import dataclass
 
-from openevolve.database import Program, ProgramDatabase
+from openevolve.database.database import Program, ProgramDatabase
 from openevolve.config import Config
 from openevolve.evaluator import Evaluator
 from openevolve.llm.llm_ensemble import EnsembleLLM

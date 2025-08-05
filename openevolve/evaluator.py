@@ -18,9 +18,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import traceback
 
 from openevolve.config import EvaluatorConfig
-from openevolve.database import ProgramDatabase
+from openevolve.database.database import ProgramDatabase
 from openevolve.evaluation_result import EvaluationResult
-from openevolve.database import ProgramDatabase
+from openevolve.database.database import ProgramDatabase
 from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.utils.async_utils import TaskPool, run_in_executor
 from openevolve.prompt.sampler import PromptSampler

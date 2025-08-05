@@ -1,11 +1,10 @@
 import logging
 import time
 import uuid
-from openevolve import evaluation_result
 from openevolve.actor.actor import Actor, Result
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
-from openevolve.database import Program, ProgramDatabase
+from openevolve.database.database import Program, ProgramDatabase
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.prompt.sampler import PromptSampler
 

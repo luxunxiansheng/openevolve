@@ -4,7 +4,7 @@ Tests for ProgramDatabase in openevolve.database
 
 import unittest
 from openevolve.config import Config
-from openevolve.database import Program, ProgramDatabase
+from openevolve.database.database import Program, ProgramDatabase
 
 
 class TestProgramDatabase(unittest.TestCase):

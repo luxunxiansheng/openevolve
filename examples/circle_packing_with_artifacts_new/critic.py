@@ -182,3 +182,5 @@ if __name__ == "__main__":
 
     critic = CirclePackingCritic()
     result = asyncio.run(critic.evaluate())
+    print("Evaluation Result:", result.metrics)
+    print("Artifacts:", result.artifacts)

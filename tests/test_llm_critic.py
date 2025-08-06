@@ -19,7 +19,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
 
     async def test_evaluate_returns_evaluation_result(self):
         # Read the hello_world initial program code
-        with open("/workspaces/openevolve/examples/circle_packing_with_artifacts/initial_program.py", "r") as f:
+        with open("/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py", "r") as f:
             program_code = f.read()
         # This will actually call the LLM, so the test may require a running LLM API or will fail gracefully
         try:

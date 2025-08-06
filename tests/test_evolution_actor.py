@@ -30,10 +30,8 @@ class TestEvolutionActor(unittest.TestCase):
 
         )
         
-
         python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
         
-
         with open(python_file_path, "r") as file:
             python_code = file.read()
 
@@ -43,7 +41,7 @@ class TestEvolutionActor(unittest.TestCase):
             language="python",
             parent_id=None,
             generation=0,
-            metrics={"score": 1.0},
+            metrics={},
             iteration_found=0,
             metadata={},
         )
@@ -53,6 +51,7 @@ class TestEvolutionActor(unittest.TestCase):
     def test_evolution_actor_act_returns_result(self):
         async def run_act():
             result = await self.actor.act()
+            print("Action Result:", result)
             self.assertIsNotNone(result)
            
         asyncio.run(run_act())

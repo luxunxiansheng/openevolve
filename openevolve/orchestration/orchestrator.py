@@ -1,13 +1,17 @@
 import logging
 import os
+import time
+import uuid
 from typing import Any, Dict, Optional
 
-
+import ray
 from openevolve.actor.evolution_actor import EvolutionActor
+from openevolve.actor.actor import ActionResult
 from openevolve.utils.format_utils import format_metrics_safe
 from openevolve.database.database import Program, ProgramDatabase
 
 logger = logging.getLogger(__name__)
+
 
 def _format_metrics(metrics: Dict[str, Any]) -> str:
     """Safely format metrics, handling both numeric and string values"""
@@ -38,96 +42,110 @@ def _format_improvement(improvement: Dict[str, Any]) -> str:
 
 
 class Orchestrator:
-    def __init__(self, 
-                 config,
-                 initial_program_path: str,
-                 database: ProgramDatabase,
-                 evolution_actor: EvolutionActor,
-                 output_dir: str = "output",
-         
-                 target_score: 'Optional[float]' = None,
-                 max_iterations: int = 100,
-                 language: str = "python",
-                 ):
+    def __init__(
+        self,
+        config,
+        initial_program: Program,  # Changed to accept Program object directly
+        database,  # Ray actor handle
+        evolution_actor: EvolutionActor,
+        output_dir: str,
+        target_score: "Optional[float]" = None,
+        max_iterations: int = 100,
+        language: str = "python",
+    ):
         self.config = config
-        self.initial_program_path = initial_program_path
-        self.database = database
+        self.initial_program = initial_program  # Store the Program object directly
+        self.database = database  # This is now a Ray actor handle
         self.target_score = target_score
         self.evolution_actor = evolution_actor
         self.max_iterations = max_iterations
-        self.language = language    
+        self.language = language
         self.output_dir = output_dir
 
-    def run(self):
+        # Extract file extension from the language or use default
+        if language == "python":
+            self.file_extension = ".py"
+        elif language == "javascript":
+            self.file_extension = ".js"
+        elif language == "rust":
+            self.file_extension = ".rs"
+        elif language == "r":
+            self.file_extension = ".r"
+        else:
+            self.file_extension = ".py"  # default
+
+    async def run(self):
         """Run the orchestration process"""
         logger.info("Starting orchestration process")
 
+        # Add initial program to database if it doesn't exist
+        ray.get(self.database.add.remote(self.initial_program))
 
-        initial_program = self._create_initial_program()
-        self.database.add_program(initial_program)
-      
-  
+        iteration = 0
         while iteration < self.max_iterations:
             logger.info(f"Iteration {iteration + 1}/{self.max_iterations}")
-            result = self.evolution_actor.act()
-            if result is None or result.child_program is None:
-                logger.warning("No valid child program generated, stopping evolution.")
-                break
+            result: ActionResult = await self.evolution_actor.act()  # This returns a Result object
 
-            child_program = result.child_program
-            metrics = child_program.metrics
-            improvement = result.improvement
+            if result is None:
+                logger.warning("No result from evolution actor, continuing...")
+                iteration += 1
+                continue
 
-            logger.info(f"Child Program ID: {child_program.id}")
-            logger.info(f"Metrics: {_format_metrics(metrics)}")
-            logger.info(f"Improvement: {_format_improvement(improvement)}")
+            # Check if there was an error
+            if hasattr(result, "error") and result.error:
+                logger.warning(f"Iteration {iteration + 1} failed: {result.error}")
+                iteration += 1
+                continue
+
+            # Check if we have a child program
+            if hasattr(result, "child_program_dict") and result.child_program_dict:
+                # Create Program object from dictionary (similar to controller logic)
+                child_program = Program.from_dict(result.child_program_dict)
+
+                # Add the child program to database using Ray actor
+                program_id = ray.get(self.database.add.remote(child_program, iteration=iteration))
+
+                logger.info(f"Iteration {iteration + 1}: Program {program_id} completed")
+
+                if result.artifacts:
+                    ray.get(self.database.store_artifacts.remote(program_id, result.artifacts))
+
+                if result.prompt:
+                    ray.get(
+                        self.database.log_prompt.remote(
+                            template_key=(
+                                "full_rewrite_user"
+                                if not self.config.diff_based_evolution
+                                else "diff_user"
+                            ),
+                            program_id=child_program.id,
+                            prompt=result.prompt,
+                            responses=[result.llm_response] if result.llm_response else [],
+                        )
+                    )
 
             iteration += 1
 
-        logger.info("Orchestration process completed.")
-        
-        best_program = None
-        if self.database.best_program_id:
-            best_program = self.database.get(self.database.best_program_id)
-            logger.info(f"Using tracked best program: {self.database.best_program_id}")
+            # Save the best program at regular intervals
+            if iteration % 10 == 0:
+                self._save_best_program()
 
-        if best_program is None:
-            best_program = self.database.get_best_program()
-            logger.info("Using calculated best program (tracked program not found)")
+        logger.info("Orchestration process completed")
 
-        # Check if there's a better program by combined_score that wasn't tracked
-        if best_program and "combined_score" in best_program.metrics:
-            best_by_combined = self.database.get_best_program(metric="combined_score")
-            if (
-                best_by_combined
-                and best_by_combined.id != best_program.id
-                and "combined_score" in best_by_combined.metrics
-            ):
-                # If the combined_score of this program is significantly better, use it instead
-                if (
-                    best_by_combined.metrics["combined_score"]
-                    > best_program.metrics["combined_score"] + 0.02
-                ):
-                    logger.warning(
-                        f"Found program with better combined_score: {best_by_combined.id}"
-                    )
-                    logger.warning(
-                        f"Score difference: {best_program.metrics['combined_score']:.4f} vs "
-                        f"{best_by_combined.metrics['combined_score']:.4f}"
-                    )
-                    best_program = best_by_combined
+        # Get and save the final best program
+        best_program_result = ray.get(self.database.get_best_program.remote())
+        best_program = best_program_result if isinstance(best_program_result, Program) else None
 
         if best_program:
             logger.info(
-                f"Evolution complete. Best program has metrics: "
-                f"{format_metrics_safe(best_program.metrics)}"
+                f"Final best program: {best_program.id} with metrics: {_format_metrics(best_program.metrics)}"
             )
             self._save_best_program(best_program)
             return best_program
         else:
             logger.warning("No valid programs found during evolution")
             return None
-    
+
     def _save_best_program(self, program: Optional[Program] = None) -> None:
         """
         Save the best program
@@ -135,13 +153,10 @@ class Orchestrator:
         Args:
             program: Best program (if None, uses the tracked best program)
         """
-        # If no program is provided, use the tracked best program from the database
+        # If no program is provided, get the best program from the database
         if program is None:
-            if self.database.best_program_id:
-                program = self.database.get(self.database.best_program_id)
-            else:
-                # Fallback to calculating best program if no tracked best program
-                program = self.database.get_best_program()
+            best_program_result = ray.get(self.database.get_best_program.remote())
+            program = best_program_result if isinstance(best_program_result, Program) else None
 
         if not program:
             logger.warning("No best program found to save")
@@ -178,12 +193,3 @@ class Orchestrator:
             )
 
         logger.info(f"Saved best program to {code_path} with program info to {info_path}")
-
-
-
-    
-
-    
-
-        
-

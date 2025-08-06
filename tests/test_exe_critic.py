@@ -12,7 +12,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     async def test_evaluate_python(self):
         # This is a placeholder for an actual test.
         # You would need to create a valid Python file and runtime environment for a real test.
-        python_file_path = "/workspaces/openevolve/examples/hello_world/evaluator.py"  # Replace with an actual script path
+        python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
         runtime_env = {}  # Adjust as needed
 
         with open(python_file_path, "r") as file:
@@ -20,7 +20,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
         # Await the coroutine returned by evaluate
         result = await self.orchestrator.evaluate(
-            python_code=python_code, runtime_env=runtime_env, program_id="test_program_2"
+            python_code=python_code, runtime_env=runtime_env, program_id="test_program_3"
         )
         print(result)
 

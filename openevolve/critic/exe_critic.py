@@ -90,7 +90,14 @@ class PythonExecutionCritic(Critic):
 
             # Analyze the job's log to extract the evaluation result
             log_output = self.job_client.get_job_logs(submission_id)
+
+            logger.info(f"Job {submission_id} logs:\n{log_output}")
+
             eval_result = self._extract_evaluation_result_from_logs(log_output)
+
+            
+            logger.info(f"Extracted evaluation result: {eval_result}")
+
             return eval_result
 
     def _extract_evaluation_result_from_logs(self, log_output: str) -> EvaluationResult:

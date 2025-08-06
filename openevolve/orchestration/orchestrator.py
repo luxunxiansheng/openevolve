@@ -1,14 +1,11 @@
 import logging
 import os
 from typing import Any, Dict, Optional
-import uuid
 
-from ray import init
 
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.utils.format_utils import format_metrics_safe
-from ..database.database import Program, ProgramDatabase
-
+from openevolve.database.database import Program, ProgramDatabase
 
 logger = logging.getLogger(__name__)
 

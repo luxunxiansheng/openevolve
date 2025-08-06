@@ -7,6 +7,7 @@ import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.actor.actor import ActionResult
 from openevolve.database.database import Program
+from openevolve.orchestration.config import OrchestratorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -14,35 +15,31 @@ logger = logging.getLogger(__name__)
 class Orchestrator:
     def __init__(
         self,
-        initial_program: Program,  # Changed to accept Program object directly
-        database,  # Ray actor handle
+        initial_program: Program,
+        database,
         evolution_actor: EvolutionActor,
         output_dir: str,
-        target_score: "Optional[float]" = None,
-        max_iterations: int = 100,
-        language: str = "python",
-        programs_per_island: int = 50,
-        diff_based_evolution: bool = False,
+        config:OrchestratorConfig=OrchestratorConfig(),
     ):
-
-        self.initial_program = initial_program  # Store the Program object directly
-        self.database = database  # This is now a Ray actor handle
-        self.target_score = target_score
+        self.initial_program = initial_program
+        self.database = database
         self.evolution_actor = evolution_actor
-        self.max_iterations = max_iterations
-        self.language = language
         self.output_dir = output_dir
-        self.programs_per_island = programs_per_island
-        self.diff_based_evolution = diff_based_evolution
+        self.config = config
+        self.target_score = config.target_score
+        self.max_iterations = config.max_iterations
+        self.language = config.language
+        self.programs_per_island = config.programs_per_island
+        self.diff_based_evolution = config.diff_based_evolution
 
         # Extract file extension from the language or use default
-        if language == "python":
+        if self.language == "python":
             self.file_extension = ".py"
-        elif language == "javascript":
+        elif self.language == "javascript":
             self.file_extension = ".js"
-        elif language == "rust":
+        elif self.language == "rust":
             self.file_extension = ".rs"
-        elif language == "r":
+        elif self.language == "r":
             self.file_extension = ".r"
         else:
             self.file_extension = ".py"  # default

@@ -1,12 +1,12 @@
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.actor.actor import ActionResult
-from openevolve.database.database import Program, ProgramDatabase
+from openevolve.database.database import Program
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class Orchestrator:
     def __init__(
         self,
-        config,
         initial_program: Program,  # Changed to accept Program object directly
         database,  # Ray actor handle
         evolution_actor: EvolutionActor,
@@ -23,8 +22,9 @@ class Orchestrator:
         max_iterations: int = 100,
         language: str = "python",
         programs_per_island: int = 50,
+        diff_based_evolution: bool = False,
     ):
-        self.config = config
+
         self.initial_program = initial_program  # Store the Program object directly
         self.database = database  # This is now a Ray actor handle
         self.target_score = target_score
@@ -33,6 +33,7 @@ class Orchestrator:
         self.language = language
         self.output_dir = output_dir
         self.programs_per_island = programs_per_island
+        self.diff_based_evolution = diff_based_evolution
 
         # Extract file extension from the language or use default
         if language == "python":
@@ -82,7 +83,7 @@ class Orchestrator:
                             self.database.log_prompt.remote(
                                 template_key=(
                                     "full_rewrite_user"
-                                    if not self.config.diff_based_evolution
+                                    if not self.diff_based_evolution
                                     else "diff_user"
                                 ),
                                 program_id=child_program.id,

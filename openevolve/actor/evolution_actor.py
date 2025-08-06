@@ -2,9 +2,10 @@ import logging
 import time
 import uuid
 from openevolve.actor.actor import Actor, ActionResult
+from openevolve.actor.config import EvolutionActorConfig
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
-from openevolve.database.database import Program, ProgramDatabase
+from openevolve.database.database import ProgramDatabase
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.prompt.sampler import PromptSampler
 
@@ -26,28 +27,21 @@ class EvolutionActor(Actor):
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
-        language: str = "python",
-        iteration: int = 100,
-        diff_based_evolution: bool = False,
-        max_code_length: int = 2048,
-        use_llm_critic: bool = True,
-        llm_feedback_weight: float = 0.1,
-        artifacts_enabled: bool = True,
+        config:EvolutionActorConfig=EvolutionActorConfig(),
     ) -> None:
-
         self.database = database
         self.prompt_sampler = prompt_sampler
         self.llm_actor_client = llm_actor_client
         self.llm_critic = llm_critic
         self.exe_critic = exe_critic
-        self.language = language
-        self.iteration = iteration
-        self.diff_based_evolution = diff_based_evolution
-        self.max_code_length = max_code_length
+        self.language = config.language
+        self.iteration = config.iteration
+        self.diff_based_evolution = config.diff_based_evolution
+        self.max_code_length = config.max_code_length
         self.artifacts = {}
-        self.use_llm_critic = use_llm_critic
-        self.llm_feedback_weight = llm_feedback_weight
-        self.artifacts_enabled = artifacts_enabled
+        self.use_llm_critic = config.use_llm_critic
+        self.llm_feedback_weight = config.llm_feedback_weight
+        self.artifacts_enabled = config.artifacts_enabled
 
     async def act(self, **kwargs) -> ActionResult:
         """

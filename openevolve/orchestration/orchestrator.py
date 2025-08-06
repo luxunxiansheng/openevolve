@@ -1,44 +1,14 @@
 import logging
 import os
 import time
-import uuid
 from typing import Any, Dict, Optional
 
 import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.actor.actor import ActionResult
-from openevolve.utils.format_utils import format_metrics_safe
 from openevolve.database.database import Program, ProgramDatabase
 
 logger = logging.getLogger(__name__)
-
-
-def _format_metrics(metrics: Dict[str, Any]) -> str:
-    """Safely format metrics, handling both numeric and string values"""
-    formatted_parts = []
-    for name, value in metrics.items():
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            try:
-                formatted_parts.append(f"{name}={value:.4f}")
-            except (ValueError, TypeError):
-                formatted_parts.append(f"{name}={value}")
-        else:
-            formatted_parts.append(f"{name}={value}")
-    return ", ".join(formatted_parts)
-
-
-def _format_improvement(improvement: Dict[str, Any]) -> str:
-    """Safely format improvement metrics"""
-    formatted_parts = []
-    for name, diff in improvement.items():
-        if isinstance(diff, (int, float)) and not isinstance(diff, bool):
-            try:
-                formatted_parts.append(f"{name}={diff:+.4f}")
-            except (ValueError, TypeError):
-                formatted_parts.append(f"{name}={diff}")
-        else:
-            formatted_parts.append(f"{name}={diff}")
-    return ", ".join(formatted_parts)
 
 
 class Orchestrator:
@@ -52,6 +22,7 @@ class Orchestrator:
         target_score: "Optional[float]" = None,
         max_iterations: int = 100,
         language: str = "python",
+        programs_per_island: int = 50,
     ):
         self.config = config
         self.initial_program = initial_program  # Store the Program object directly
@@ -61,6 +32,7 @@ class Orchestrator:
         self.max_iterations = max_iterations
         self.language = language
         self.output_dir = output_dir
+        self.programs_per_island = programs_per_island
 
         # Extract file extension from the language or use default
         if language == "python":
@@ -81,70 +53,131 @@ class Orchestrator:
         # Add initial program to database if it doesn't exist
         ray.get(self.database.add.remote(self.initial_program))
 
-        iteration = 0
-        while iteration < self.max_iterations:
-            logger.info(f"Iteration {iteration + 1}/{self.max_iterations}")
+        # Initialize island tracking variables
+        start_iteration = 0
+        current_island_counter = 0
+
+        completed_iteration = 0
+        while completed_iteration < self.max_iterations:
             result: ActionResult = await self.evolution_actor.act()  # This returns a Result object
+            try:
+                if result.error:
+                    logger.warning(f"Iteration {completed_iteration} error: {result.error}")
+                elif result.child_program_dict:
+                    # Reconstruct program from dict
+                    child_program = Program(**result.child_program_dict)
 
-            if result is None:
-                logger.warning("No result from evolution actor, continuing...")
-                iteration += 1
-                continue
+                    # Add to database
+                    ray.get(self.database.add.remote(child_program, iteration=completed_iteration))
 
-            # Check if there was an error
-            if hasattr(result, "error") and result.error:
-                logger.warning(f"Iteration {iteration + 1} failed: {result.error}")
-                iteration += 1
-                continue
-
-            # Check if we have a child program
-            if hasattr(result, "child_program_dict") and result.child_program_dict:
-                # Create Program object from dictionary (similar to controller logic)
-                child_program = Program.from_dict(result.child_program_dict)
-
-                # Add the child program to database using Ray actor
-                program_id = ray.get(self.database.add.remote(child_program, iteration=iteration))
-
-                logger.info(f"Iteration {iteration + 1}: Program {program_id} completed")
-
-                if result.artifacts:
-                    ray.get(self.database.store_artifacts.remote(program_id, result.artifacts))
-
-                if result.prompt:
-                    ray.get(
-                        self.database.log_prompt.remote(
-                            template_key=(
-                                "full_rewrite_user"
-                                if not self.config.diff_based_evolution
-                                else "diff_user"
-                            ),
-                            program_id=child_program.id,
-                            prompt=result.prompt,
-                            responses=[result.llm_response] if result.llm_response else [],
+                    # Store artifacts
+                    if result.artifacts:
+                        ray.get(
+                            self.database.store_artifacts.remote(child_program.id, result.artifacts)
                         )
+
+                    # Log prompts
+                    if result.prompt:
+                        ray.get(
+                            self.database.log_prompt.remote(
+                                template_key=(
+                                    "full_rewrite_user"
+                                    if not self.config.diff_based_evolution
+                                    else "diff_user"
+                                ),
+                                program_id=child_program.id,
+                                prompt=result.prompt,
+                                responses=[result.llm_response] if result.llm_response else [],
+                            )
+                        )
+
+                    # Island management
+                    if (
+                        completed_iteration > start_iteration
+                        and current_island_counter >= self.programs_per_island
+                    ):
+                        ray.get(self.database.next_island.remote())
+                        current_island_counter = 0
+                        current_island = ray.get(self.database.get_current_island.remote())
+                        logger.debug(f"Switched to island {current_island}")
+
+                    current_island_counter += 1
+                    ray.get(self.database.increment_island_generation.remote())
+
+                    # Check migration
+                    should_migrate = ray.get(self.database.should_migrate.remote())
+                    if should_migrate:
+                        logger.info(f"Performing migration at iteration {completed_iteration}")
+                        ray.get(self.database.migrate_programs.remote())
+                        ray.get(self.database.log_island_status.remote())
+
+                    # Log progress
+                    logger.info(
+                        f"Iteration {completed_iteration}: "
+                        f"Program {child_program.id} "
+                        f"(parent: {result.parent_id}) "
+                        f"completed in {result.iteration_time:.2f}s"
                     )
 
-            iteration += 1
+                    if child_program.metrics:
+                        metrics_str = ", ".join(
+                            [
+                                f"{k}={v:.4f}" if isinstance(v, (int, float)) else f"{k}={v}"
+                                for k, v in child_program.metrics.items()
+                            ]
+                        )
+                        logger.info(f"Metrics: {metrics_str}")
 
-            # Save the best program at regular intervals
-            if iteration % 10 == 0:
-                self._save_best_program()
+                        # Check if this is the first program without combined_score
+                        if not hasattr(self, "_warned_about_combined_score"):
+                            self._warned_about_combined_score = False
 
-        logger.info("Orchestration process completed")
+                        if (
+                            "combined_score" not in child_program.metrics
+                            and not self._warned_about_combined_score
+                        ):
+                            from openevolve.utils.metrics_utils import safe_numeric_average
 
-        # Get and save the final best program
-        best_program_result = ray.get(self.database.get_best_program.remote())
-        best_program = best_program_result if isinstance(best_program_result, Program) else None
+                            avg_score = safe_numeric_average(child_program.metrics)
+                            logger.warning(
+                                f"⚠️  No 'combined_score' metric found in evaluation results. "
+                                f"Using average of all numeric metrics ({avg_score:.4f}) for evolution guidance. "
+                                f"For better evolution results, please modify your evaluator to return a 'combined_score' "
+                                f"metric that properly weights different aspects of program performance."
+                            )
+                            self._warned_about_combined_score = True
 
-        if best_program:
-            logger.info(
-                f"Final best program: {best_program.id} with metrics: {_format_metrics(best_program.metrics)}"
-            )
-            self._save_best_program(best_program)
-            return best_program
-        else:
-            logger.warning("No valid programs found during evolution")
-            return None
+                    # Check for new best
+                    best_program_id = ray.get(self.database.get_best_program_id.remote())
+                    if best_program_id == child_program.id:
+                        logger.info(
+                            f"🌟 New best solution found at iteration {completed_iteration}: "
+                            f"{child_program.id}"
+                        )
+                        # Save the new best program
+                        self._save_best_program(child_program)
+
+                    # Check target score
+                    if self.target_score is not None and child_program.metrics:
+                        numeric_metrics = [
+                            v for v in child_program.metrics.values() if isinstance(v, (int, float))
+                        ]
+                        if numeric_metrics:
+                            avg_score = sum(numeric_metrics) / len(numeric_metrics)
+                            if avg_score >= self.target_score:
+                                logger.info(
+                                    f"Target score {self.target_score} reached at iteration {completed_iteration}"
+                                )
+                                break
+
+            except Exception as e:
+                logger.error(f"Error processing result from iteration {completed_iteration}: {e}")
+
+            completed_iteration += 1
+
+        # Save final best program
+        logger.info("Evolution completed. Saving final best program...")
+        self._save_best_program()
 
     def _save_best_program(self, program: Optional[Program] = None) -> None:
         """

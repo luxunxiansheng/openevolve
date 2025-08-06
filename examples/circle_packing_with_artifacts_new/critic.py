@@ -122,6 +122,9 @@ class CirclePackingCritic(Critic):
 
         artifacts = {"centers": centers, "radii": radii}
 
+        
+        # Importantly, log the artifacts and metrics otherwise the critic will not work
+        # This is necessary for the critic to function correctly
         self.log_artifact(artifacts)
         self.log_metrics(metrics)
 

@@ -9,3 +9,4 @@ class OrchestratorConfig:
     programs_per_island: int = 50
     diff_based_evolution: bool = False
     target_score: Optional[float] = None
+    file_extension: str = ".py"

@@ -22,13 +22,17 @@ class PythonExecutionCritic(Critic):
 
     def __init__(
         self,
+        critic_program_path:str,
         config: CriticConfig = CriticConfig(),
-    ) -> None:
+    ) -> None:        
+        self.critic_program_path = critic_program_path
         self.job_client = JobSubmissionClient(config.default_ray_head_ip)
         self.job_timeout_seconds = config.job_timeout_seconds
         self.status_check_interval = config.status_check_interval
         self.job_stop_wait_time = config.job_stop_wait_time
         self.delteion_wait_time = config.deletion_wait_time
+        
+        self.critic_program = None
 
     async def evaluate(self, **kwargs) -> EvaluationResult:
         """
@@ -41,21 +45,37 @@ class PythonExecutionCritic(Critic):
         Returns:
             EvaluationResult containing metrics and artifacts from execution
         """
-        # Extract and validate parameters
-        python_exe_code = kwargs.get("python_exe_code", "")
-        program_id = kwargs.get("program_id")
-        runtime_env = kwargs.get("runtime_env", {})
 
+        # Fetch required arguments at the top
+        evolved_program_code = kwargs.get("evolved_program_code", "")
+        if not evolved_program_code:
+            raise ValueError("evolved_program_code must be provided for evaluation.")
+
+        program_id = kwargs.get("program_id")
         if not program_id:
             raise ValueError("program_id must be provided for evaluation.")
 
+        runtime_env = kwargs.get("runtime_env", {})
         if not runtime_env:
             logger.warning("No runtime environment provided, using default settings.")
+
+        if self.critic_program is None:
+            with open(self.critic_program_path, "r") as file:
+                self.critic_program = file.read()
+                if not self.critic_program.strip():
+                    raise ValueError("Critic program is empty or not found at the specified path.")
+
+        # Optionally, check types
+        if not isinstance(evolved_program_code, str) or not isinstance(self.critic_program, str):
+            raise TypeError("Both evolved_program_code and critic_program must be strings.")
+
+        # Combine the evolved program code with the critic program as the job script
+        job_script = evolved_program_code + self.critic_program
 
         # Submit and monitor job
         with tempfile.TemporaryDirectory() as temp_dir:
             submission_id = self._submit_evaluation_job(
-                python_exe_code, program_id, runtime_env, temp_dir
+                job_script, program_id, runtime_env, temp_dir
             )
 
             # Wait for job completion and get results

@@ -2,12 +2,33 @@ import logging
 import os
 import time
 from typing import Optional
+import uuid
 
 import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.actor.actor import ActionResult
+from ..database.config import DatabaseConfig
 from openevolve.database.database import Program
 from openevolve.orchestration.config import OrchestratorConfig
+from openevolve.actor.evolution_actor import EvolutionActor
+
+from openevolve.critic.exe_critic import PythonExecutionCritic
+
+from openevolve.critic.llm_critic import LLMCritic
+
+from openevolve.llm.llm_ensemble import EnsembleLLM
+
+from openevolve.orchestration.orchestrator import Orchestrator
+from openevolve.prompt.sampler import PromptSampler
+
+from openevolve.database.database import Program, ProgramDatabase
+
+from openevolve.llm.config import LLMConfig
+
+from openevolve.prompt.config import PromptConfig
+
+# Import the Orchestrator and its config
+from openevolve.database.config import DatabaseConfig
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +36,16 @@ logger = logging.getLogger(__name__)
 class Orchestrator:
     def __init__(
         self,
-        initial_program: Program,
+        critic_program_path: str,
+        evoved_program_path: str,
         database,
         evolution_actor: EvolutionActor,
         output_dir: str,
         config: OrchestratorConfig = OrchestratorConfig(),
     ):
-        self.initial_program = initial_program
+        self.critic_program_path = critic_program_path
+        self.evolved_program_path = evoved_program_path
+        
         self.database = database
         self.evolution_actor = evolution_actor
         self.output_dir = output_dir
@@ -31,25 +55,62 @@ class Orchestrator:
         self.language = config.language
         self.programs_per_island = config.programs_per_island
         self.diff_based_evolution = config.diff_based_evolution
+        self.file_extension = config.file_extension
+        self.critic_program = None 
 
-        # Extract file extension from the language or use default
-        if self.language == "python":
-            self.file_extension = ".py"
-        elif self.language == "javascript":
-            self.file_extension = ".js"
-        elif self.language == "rust":
-            self.file_extension = ".rs"
-        elif self.language == "r":
-            self.file_extension = ".r"
-        else:
-            self.file_extension = ".py"  # default
+    def init(self,
+            critic_program_path,
+            evoved_program_path,
+
+            db_config:DatabaseConfig=DatabaseConfig(),
+            prompt_config:PromptConfig=PromptConfig(),
+            llm_config:LLMConfig=LLMConfig(),
+
+    ):
+        
+        self.evolved_program_path = evoved_program_path
+        
+        self.database = ray.remote(ProgramDatabase).remote(db_config)
+        
+        llm_client = EnsembleLLM([llm_config])        
+        prompt_sampler = PromptSampler(prompt_config)        
+        llm_critic = LLMCritic(llm_client, prompt_sampler)        
+        exe_critic = PythonExecutionCritic(critic_program_path=critic_program_path)
+        
+        self.evolution_actor = EvolutionActor(
+            database=self.database,
+            prompt_sampler=prompt_sampler,
+            llm_actor_client=llm_client,
+            llm_critic=llm_critic,
+            exe_critic=exe_critic,
+        )
+        
 
     async def run(self):
         """Run the orchestration process"""
         logger.info("Starting orchestration process")
 
+       
+        with open(self.evolved_program_path, "r") as file:
+            program_to_be_evolved= file.read()
+           
+        if not program_to_be_evolved:
+            raise ValueError("No valid program found in the provided file.")
+        
+        # Create initial program object
+        initial_evolved_program = Program(
+            id=str(uuid.uuid4()),
+            code=program_to_be_evolved,
+            language=self.language,
+            parent_id=None,
+            generation=0,
+            metrics={},
+            iteration_found=0,
+            metadata={},
+        )      
+
         # Add initial program to database if it doesn't exist
-        ray.get(self.database.add.remote(self.initial_program))
+        ray.get(self.database.add.remote(initial_evolved_program))
 
         # Initialize island tracking variables
         start_iteration = 0
@@ -59,9 +120,8 @@ class Orchestrator:
 
         while current_iteration < self.max_iterations:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
-            
-            result: ActionResult = await self.evolution_actor.act(iteration=current_iteration)  # This returns a Result object
             try:
+                result: ActionResult = await self.evolution_actor.act(iteration=current_iteration)  # This returns a Result object
                 if result.error:
                     logger.warning(f"Iteration {current_iteration} error: {result.error}")
                 elif result.child_program_dict:

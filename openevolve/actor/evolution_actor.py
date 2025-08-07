@@ -1,7 +1,6 @@
 import logging
 import time
 import uuid
-from typing import Any
 
 import ray
 from ray.actor import ActorHandle
@@ -10,7 +9,6 @@ from openevolve.actor.actor import Actor, ActionResult
 from openevolve.actor.config import EvolutionActorConfig
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
-from openevolve.database.database import ProgramDatabase
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.prompt.sampler import PromptSampler
 
@@ -55,6 +53,9 @@ class EvolutionActor(Actor):
         """
 
         try:
+            critic_program = kwargs.get("critic_program")
+            if not critic_program:
+                raise ValueError("critic_program must be provided in kwargs")
             iteration = kwargs.get("iteration", 0)
 
             # Sample parent and inspirations from database (Ray actor)
@@ -111,7 +112,7 @@ class EvolutionActor(Actor):
                     return None
 
                 # Apply the diffs
-                child_code = apply_diff(parent.code, llm_response)
+                evovled_child_code = apply_diff(parent.code, llm_response)
                 changes_summary = format_diff_summary(diff_blocks)
             else:
                 # Parse full rewrite
@@ -121,14 +122,14 @@ class EvolutionActor(Actor):
                     logger.warning(f"Iteration {iteration}: No valid code found in response")
                     return None
 
-                child_code = new_code
+                evovled_child_code = new_code
                 changes_summary = "Full rewrite"
 
             # Check code length
-            if len(child_code) > self.max_code_length:
+            if len(evovled_child_code) > self.max_code_length:
                 logger.warning(
                     f"Iteration {iteration}: Generated code exceeds maximum length "
-                    f"({len(child_code)} > {self.max_code_length})"
+                    f"({len(evovled_child_code)} > {self.max_code_length})"
                 )
                 return None
 
@@ -136,12 +137,12 @@ class EvolutionActor(Actor):
 
             # Evaluate the child code
             exe_evaluation_result = await self.exe_critic.evaluate(
-                python_code=child_code, program_id=child_id
+                python_code=evovled_child_code, program_id=child_id
             )
             llm_evaluation_result = None
             if self.use_llm_critic:
                 llm_evaluation_result = await self.llm_critic.evaluate(
-                    program_code=child_code, program_id=child_id
+                    program_code=evovled_child_code, program_id=child_id
                 )
 
                 for name, value in llm_evaluation_result.metrics.items():
@@ -158,7 +159,7 @@ class EvolutionActor(Actor):
             return ActionResult(
                 child_program_dict={
                     "id": child_id,
-                    "code": child_code,
+                    "code": evovled_child_code,
                     "language": self.language,
                     "parent_id": parent.id,
                     "generation": parent.generation + 1,

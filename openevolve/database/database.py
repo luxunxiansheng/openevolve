@@ -175,6 +175,24 @@ class ProgramDatabase:
 
         logger.info(f"Initialized program database with {len(self.programs)} programs")
 
+    def get_best_program_id(self) -> Optional[str]:
+        """
+        Get the ID of the best program in the database
+
+        Returns:
+            Best program ID or None if no programs exist
+        """
+        return self.best_program_id
+
+    def get_current_island(self) -> int:
+        """
+        Get the current island index
+
+        Returns:
+            Current island index
+        """
+        return self.current_island
+
     def add(
         self, program: Program, iteration: int = None, target_island: Optional[int] = None
     ) -> str:

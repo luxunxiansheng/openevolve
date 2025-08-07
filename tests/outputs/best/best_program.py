@@ -1,5 +1,5 @@
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
+"""Constructor-based circle packing for n=26 circles with improved readability and maintainability"""
 import numpy as np
 
 
@@ -14,32 +14,22 @@ def construct_packing():
         radii: np.array of shape (26) with radius of each circle
         sum_of_radii: Sum of all radii
     """
-    # Initialize arrays for 26 circles
     n = 26
     centers = np.zeros((n, 2))
 
-    # Place circles in a structured pattern
-    # This is a simple pattern - evolution will improve this
-
-    # First, place a large circle in the center
+    # Place a central circle
     centers[0] = [0.5, 0.5]
 
-    # Place 8 circles around it in a ring
-    for i in range(8):
-        angle = 2 * np.pi * i / 8
-        centers[i + 1] = [0.5 + 0.3 * np.cos(angle), 0.5 + 0.3 * np.sin(angle)]
+    # Place 8 circles in an inner ring
+    place_ring(centers, start_index=1, num_circles=8, ring_radius=0.3)
 
-    # Place 16 more circles in an outer ring
-    for i in range(16):
-        angle = 2 * np.pi * i / 16
-        centers[i + 9] = [0.5 + 0.7 * np.cos(angle), 0.5 + 0.7 * np.sin(angle)]
+    # Place 16 circles in an outer ring
+    place_ring(centers, start_index=9, num_circles=16, ring_radius=0.7)
 
-    # Additional positioning adjustment to make sure all circles
-    # are inside the square and don't overlap
-    # Clip to ensure everything is inside the unit square
+    # Ensure centers stay within the unit square
     centers = np.clip(centers, 0.01, 0.99)
 
-    # Compute maximum valid radii for this configuration
+    # Compute maximum valid radii based on boundary and overlap constraints
     radii = compute_max_radii(centers)
 
     # Calculate the sum of radii
@@ -48,9 +38,40 @@ def construct_packing():
     return centers, radii, sum_radii
 
 
+def place_ring(centers, start_index, num_circles, ring_radius):
+    """
+    Places a ring of circles around a central point.
+
+    Args:
+        centers: Array to store circle centers.
+        start_index: Starting index in the centers array.
+        num_circles: Number of circles in the ring.
+        ring_radius: Distance from the central point to the ring.
+    """
+    for i in range(num_circles):
+        angle = 2 * np.pi * i / num_circles
+        x = 0.5 + ring_radius * np.cos(angle)
+        y = 0.5 + ring_radius * np.sin(angle)
+        centers[start_index + i] = [x, y]
+
+
+def compute_pairwise_distances(centers):
+    """
+    Compute pairwise distances between all circle centers using NumPy broadcasting.
+
+    Args:
+        centers: np.array of shape (n, 2) with (x, y) coordinates
+
+    Returns:
+        np.array of shape (n, n) with pairwise distances
+    """
+    diff = centers[:, np.newaxis, :] - centers[np.newaxis, :, :]
+    return np.sqrt(np.sum(diff ** 2, axis=2))
+
+
 def compute_max_radii(centers):
     """
-    Compute the maximum possible radii for each circle position
+    Computes the maximum possible radii for each circle position
     such that they don't overlap and stay within the unit square.
 
     Args:
@@ -62,22 +83,19 @@ def compute_max_radii(centers):
     n = centers.shape[0]
     radii = np.ones(n)
 
-    # First, limit by distance to square borders
+    # Step 1: Limit radii by distance to square boundaries
     for i in range(n):
         x, y = centers[i]
-        # Distance to borders
         radii[i] = min(x, y, 1 - x, 1 - y)
 
-    # Then, limit by distance to other circles
-    # Each pair of circles with centers at distance d can have
-    # sum of radii at most d to avoid overlap
+    # Step 2: Precompute all pairwise distances
+    distances = compute_pairwise_distances(centers)
+
+    # Step 3: Limit radii by distance to other circles
     for i in range(n):
         for j in range(i + 1, n):
-            dist = np.sqrt(np.sum((centers[i] - centers[j]) ** 2))
-
-            # If current radii would cause overlap
+            dist = distances[i, j]
             if radii[i] + radii[j] > dist:
-                # Scale both radii proportionally
                 scale = dist / (radii[i] + radii[j])
                 radii[i] *= scale
                 radii[j] *= scale
@@ -91,8 +109,7 @@ def compute_max_radii(centers):
 # This part remains fixed (not evolved)
 def run_packing():
     """Run the circle packing constructor for n=26"""
-    centers, radii, sum_radii = construct_packing()
-    return centers, radii, sum_radii
+    return construct_packing()
 
 
 from openevolve.critic.critic import EvaluationResult, Critic
@@ -107,24 +124,21 @@ class CirclePackingCritic(Critic):
     async def evaluate(self, **kwargs) -> EvaluationResult:
         artifacts = {}
         metrics = {}
-        
-        centers = run_packing()[0]  # Get centers from the packing function
-        radii = run_packing()[1]  # Get radii from the packing function
-        sum_radii = run_packing()[2]  # Get sum of radii
 
-        # Calculate the sum of radii
-        sum_radii = sum(radii)
+        # Retrieve all values in a single call
+        centers, radii, sum_radii = run_packing()
 
         # Check for overlaps
-        overlaps = self._validate_packing(centers, radii)
+        is_valid, validation_details = self._validate_packing(centers, radii)
 
-        metrics = {"sum_radii": sum_radii, "overlaps": overlaps}
+        metrics = {
+            "sum_radii": sum_radii,
+            "overlaps": len(validation_details["overlaps"]) > 0,
+        }
 
         artifacts = {"centers": centers, "radii": radii}
 
-        
-        # Importantly, log the artifacts and metrics otherwise the critic will not work
-        # This is necessary for the critic to function correctly
+        # Log artifacts and metrics
         self.log_artifact(artifacts)
         self.log_metrics(metrics)
 
@@ -151,7 +165,7 @@ class CirclePackingCritic(Critic):
             "avg_radius": float(np.mean(radii)),
         }
 
-        # Check if circles are inside the unit square
+        # Step 1: Check if circles are inside the unit square
         for i in range(n):
             x, y = centers[i]
             r = radii[i]
@@ -160,16 +174,17 @@ class CirclePackingCritic(Critic):
                     f"Circle {i} at ({x:.6f}, {y:.6f}) with radius {r:.6f} is outside unit square"
                 )
                 validation_details["boundary_violations"].append(violation)
-                print(violation)
 
-        # Check for overlaps
+        # Step 2: Compute pairwise distances using helper function
+        distances = compute_pairwise_distances(centers)
+
+        # Step 3: Check for overlaps
         for i in range(n):
             for j in range(i + 1, n):
-                dist = np.sqrt(np.sum((centers[i] - centers[j]) ** 2))
-                if dist < radii[i] + radii[j] - 1e-6:  # Allow for tiny numerical errors
+                dist = distances[i, j]
+                if dist < radii[i] + radii[j] - 1e-6:
                     overlap = f"Circles {i} and {j} overlap: dist={dist:.6f}, r1+r2={radii[i]+radii[j]:.6f}"
                     validation_details["overlaps"].append(overlap)
-                    print(overlap)
 
         is_valid = (
             len(validation_details["boundary_violations"]) == 0

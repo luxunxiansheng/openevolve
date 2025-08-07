@@ -58,6 +58,8 @@ class Orchestrator:
         completed_iteration = 0
 
         while completed_iteration < self.max_iterations:
+            logger.info(f"Running iteration {completed_iteration + 1}/{self.max_iterations}")
+            
             result: ActionResult = await self.evolution_actor.act()  # This returns a Result object
             try:
                 if result.error:

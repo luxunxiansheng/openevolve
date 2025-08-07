@@ -26,7 +26,7 @@ class LLMConfig:
     max_tokens: int = 20480
 
     # Request parameters
-    timeout: int = 60
+    timeout: int = 120
     retries: int = 3
     retry_delay: int = 5
 

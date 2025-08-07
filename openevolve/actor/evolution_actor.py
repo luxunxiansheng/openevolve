@@ -1,8 +1,10 @@
 import logging
 import time
 import uuid
+from typing import Any
 
 import ray
+from ray.actor import ActorHandle
 
 from openevolve.actor.actor import Actor, ActionResult
 from openevolve.actor.config import EvolutionActorConfig
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 class EvolutionActor(Actor):
     def __init__(
         self,
-        database: ProgramDatabase,
+        database: ActorHandle,  # Explicit Ray actor handle
         prompt_sampler: PromptSampler,
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
@@ -50,25 +52,21 @@ class EvolutionActor(Actor):
         """
         Perform the evolution action based on the provided parameters.
         """
-     
 
         try:
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
 
             # Get artifacts for the parent program if available
-            parent_artifacts =  ray.get(self.database.get_artifacts.remote(parent.id))
+            parent_artifacts = ray.get(self.database.get_artifacts.remote(parent.id))
 
             # Get island-specific top programs for prompt context (maintain island isolation)
-            current_island = ray.get(self.database.get_current_island().remote())
-            
-            
-            parent_island = parent.metadata.get("island", current_island )
-      
-            island_top_programs =  ray.get(
-                self.database.get_top_programs.remote(5, parent_island)
-            )
-            island_previous_programs =  ray.get(
+            current_island = ray.get(self.database.get_current_island.remote())
+
+            parent_island = parent.metadata.get("island", current_island)
+
+            island_top_programs = ray.get(self.database.get_top_programs.remote(5, parent_island))
+            island_previous_programs = ray.get(
                 self.database.get_top_programs.remote(3, parent_island)
             )
 

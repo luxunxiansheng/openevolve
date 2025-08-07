@@ -23,7 +23,7 @@ from openevolve.prompt.config import PromptConfig
 # Import the Orchestrator and its config
 from openevolve.database.config import DatabaseConfig
 
-python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"  # Replace with an actual script path
+python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
 output_path = "/workspaces/openevolve/tests/outputs"
 
 # Set up logging

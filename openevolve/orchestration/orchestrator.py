@@ -60,7 +60,7 @@ class Orchestrator:
         while current_iteration < self.max_iterations:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             
-            result: ActionResult = await self.evolution_actor.act(current_iteration)  # This returns a Result object
+            result: ActionResult = await self.evolution_actor.act(iteration=current_iteration)  # This returns a Result object
             try:
                 if result.error:
                     logger.warning(f"Iteration {current_iteration} error: {result.error}")

@@ -7,7 +7,7 @@ from openevolve.critic.exe_critic import PythonExecutionCritic
 class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
 
-        self.orchestrator = PythonExecutionCritic(ray_cluster_head_ip="http://localhost:8265")
+        self.orchestrator = PythonExecutionCritic()
 
     async def test_evaluate_python(self):
         # This is a placeholder for an actual test.

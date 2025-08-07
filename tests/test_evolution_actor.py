@@ -1,5 +1,8 @@
 import unittest
 import asyncio
+
+import ray
+
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.database.database import ProgramDatabase, Program
 from openevolve.prompt.sampler import PromptSampler
@@ -16,7 +19,7 @@ class TestEvolutionActor(unittest.TestCase):
         db_config = DatabaseConfig()
         prompt_config = PromptConfig()
         llm_config = LLMConfig()
-        self.database = ProgramDatabase(db_config)
+        self.database = ray.remote(ProgramDatabase).remote(db_config)
         self.prompt_sampler = PromptSampler(prompt_config)
         self.llm_actor_client = EnsembleLLM([llm_config])
         self.llm_critic = LLMCritic(self.llm_actor_client, self.prompt_sampler)
@@ -45,12 +48,12 @@ class TestEvolutionActor(unittest.TestCase):
             iteration_found=0,
             metadata={},
         )
-        self.database.add(parent_program)
+        self.database.add.remote(parent_program)
    
 
     def test_evolution_actor_act_returns_result(self):
         async def run_act():
-            result = await self.actor.act()
+            result = await self.actor.act(iteration=0)
             print("Action Result:", result)
             self.assertIsNotNone(result)
            

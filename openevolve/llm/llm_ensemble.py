@@ -89,6 +89,11 @@ class EnsembleLLM(LLMInterface):
         self, system_message: str, messages: List[Dict[str, str]], **kwargs
     ) -> str:
         """Generate text using a all available models and average their returned metrics"""
+        
+        # print the messages for debugging
+        print(f"Generating with context: {system_message}, messages: {messages}")
+        
+        
         tasks = [
             model.generate_with_context(system_message, messages, **kwargs)
             for model in self.ensemble_models

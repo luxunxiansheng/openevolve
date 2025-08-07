@@ -1,5 +1,7 @@
 # EVOLVE-BLOCK-START
 """Constructor-based circle packing for n=26 circles"""
+import logging
+from cv2 import log
 import numpy as np
 
 
@@ -97,6 +99,8 @@ def run_packing():
 
 from openevolve.critic.critic import EvaluationResult, Critic
 
+        # Target value from the paper
+TARGET_VALUE = 2.635  # AlphaEvolve result for n=26
 
 class CirclePackingCritic(Critic):
     """
@@ -104,23 +108,61 @@ class CirclePackingCritic(Critic):
     This critic evaluates the solution based on the sum of radii and checks for overlaps.
     """
 
+
     async def evaluate(self, **kwargs) -> EvaluationResult:
-        artifacts = {}
-        metrics = {}
+
         
         centers = run_packing()[0]  # Get centers from the packing function
         radii = run_packing()[1]  # Get radii from the packing function
-        sum_radii = run_packing()[2]  # Get sum of radii
+        reported_sum_radii = run_packing()[2]  # Get sum of radii
 
         # Calculate the sum of radii
         sum_radii = sum(radii)
 
         # Check for overlaps
-        overlaps = self._validate_packing(centers, radii)
+        valid, validation_details = self._validate_packing(centers, radii)
 
-        metrics = {"sum_radii": sum_radii, "overlaps": overlaps}
+                # Make sure reported_sum matches the calculated sum
+        sum_mismatch = abs(sum_radii - reported_sum_radii) > 1e-6
+        if sum_mismatch:
+            mismatch_warning = (
+                f"Warning: Reported sum {reported_sum_radii} doesn't match calculated sum {sum_radii}"
+            )
+            print(mismatch_warning)
 
-        artifacts = {"centers": centers, "radii": radii}
+        # Target ratio (how close we are to the target)
+        target_ratio = sum_radii / TARGET_VALUE if valid else 0.0
+
+        # Validity score
+        validity = 1.0 if valid else 0.0
+
+        # Combined score - higher is better
+        combined_score = target_ratio * validity
+
+        artifacts = {
+           
+            "packing_summary": f"Sum of radii: {sum_radii:.6f}/{TARGET_VALUE} = {target_ratio:.4f}",
+            "validation_report": f"Valid: {valid}, Violations: {len(validation_details.get('boundary_violations', []))} boundary, {len(validation_details.get('overlaps', []))} overlaps",
+        }
+
+            # Add sum mismatch warning if present
+        if sum_mismatch:
+            artifacts["sum_mismatch"] = f"Reported: {reported_sum_radii:.6f}, Calculated: {sum_radii:.6f}"
+
+        # Add successful packing stats for good solutions
+        if valid and target_ratio > 0.95:  # Near-optimal solutions
+            artifacts["stdout"] = f"Excellent packing! Achieved {target_ratio:.1%} of target value"
+            artifacts[
+                "radius_stats"
+            ] = f"Min: {validation_details['min_radius']:.6f}, Max: {validation_details['max_radius']:.6f}, Avg: {validation_details['avg_radius']:.6f}"
+
+
+        metrics = {
+            "sum_radii": reported_sum_radii,
+            "target_ratio": target_ratio,
+            "validity": validity,
+            "combined_score": combined_score,
+            }
 
         
         # Importantly, log the artifacts and metrics otherwise the critic will not work

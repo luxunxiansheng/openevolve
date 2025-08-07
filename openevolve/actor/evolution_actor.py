@@ -1,6 +1,9 @@
 import logging
 import time
 import uuid
+
+import ray
+
 from openevolve.actor.actor import Actor, ActionResult
 from openevolve.actor.config import EvolutionActorConfig
 from openevolve.critic.exe_critic import PythonExecutionCritic
@@ -27,7 +30,7 @@ class EvolutionActor(Actor):
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
-        config:EvolutionActorConfig=EvolutionActorConfig(),
+        config: EvolutionActorConfig = EvolutionActorConfig(),
     ) -> None:
         self.database = database
         self.prompt_sampler = prompt_sampler
@@ -47,17 +50,27 @@ class EvolutionActor(Actor):
         """
         Perform the evolution action based on the provided parameters.
         """
+     
+
         try:
-            # Sample parent and inspirations from database
-            parent, inspirations = self.database.sample()
+            # Sample parent and inspirations from database (Ray actor)
+            parent, inspirations = ray.get(self.database.sample.remote())
 
             # Get artifacts for the parent program if available
-            parent_artifacts = self.database.get_artifacts(parent.id)
+            parent_artifacts =  ray.get(self.database.get_artifacts.remote(parent.id))
 
             # Get island-specific top programs for prompt context (maintain island isolation)
-            parent_island = parent.metadata.get("island", self.database.current_island)
-            island_top_programs = self.database.get_top_programs(5, island_idx=parent_island)
-            island_previous_programs = self.database.get_top_programs(3, island_idx=parent_island)
+            current_island = ray.get(self.database.get_current_island().remote())
+            
+            
+            parent_island = parent.metadata.get("island", current_island )
+      
+            island_top_programs =  ray.get(
+                self.database.get_top_programs.remote(5, parent_island)
+            )
+            island_previous_programs =  ray.get(
+                self.database.get_top_programs.remote(3, parent_island)
+            )
 
             # Build prompt
             prompt = self.prompt_sampler.build_prompt(

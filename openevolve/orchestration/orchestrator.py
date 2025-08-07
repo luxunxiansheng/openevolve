@@ -19,7 +19,7 @@ class Orchestrator:
         database,
         evolution_actor: EvolutionActor,
         output_dir: str,
-        config:OrchestratorConfig=OrchestratorConfig(),
+        config: OrchestratorConfig = OrchestratorConfig(),
     ):
         self.initial_program = initial_program
         self.database = database
@@ -56,6 +56,7 @@ class Orchestrator:
         current_island_counter = 0
 
         completed_iteration = 0
+
         while completed_iteration < self.max_iterations:
             result: ActionResult = await self.evolution_actor.act()  # This returns a Result object
             try:

@@ -329,7 +329,7 @@ class ProgramDatabase:
         parent = self._sample_parent()
 
         # Select inspirations
-        inspirations = self._sample_inspirations(parent, n=5)
+        inspirations = self._sample_inspirations(parent, n=getattr(self.config, 'num_inspirations', 5))
 
         logger.debug(f"Sampled parent {parent.id} and {len(inspirations)} inspirations")
         return parent, inspirations

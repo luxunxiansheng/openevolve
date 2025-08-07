@@ -42,6 +42,7 @@ class DatabaseConfig:
     artifact_size_threshold: int = 32 * 1024  # 32KB threshold
     cleanup_old_artifacts: bool = True
     artifact_retention_days: int = 30
+    num_inspirations: int = 5  # Number of inspirations to sample for each program
 
     def to_dict(self) -> Dict[str, Optional[Union[str, bool, int, float, List[str], Dict[str, int]]]]:
         """Convert configuration to a dictionary"""

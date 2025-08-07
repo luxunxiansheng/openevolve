@@ -55,21 +55,21 @@ class Orchestrator:
         start_iteration = 0
         current_island_counter = 0
 
-        completed_iteration = 0
+        current_iteration = 0
 
-        while completed_iteration < self.max_iterations:
-            logger.info(f"Running iteration {completed_iteration + 1}/{self.max_iterations}")
+        while current_iteration < self.max_iterations:
+            logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             
-            result: ActionResult = await self.evolution_actor.act()  # This returns a Result object
+            result: ActionResult = await self.evolution_actor.act(current_iteration)  # This returns a Result object
             try:
                 if result.error:
-                    logger.warning(f"Iteration {completed_iteration} error: {result.error}")
+                    logger.warning(f"Iteration {current_iteration} error: {result.error}")
                 elif result.child_program_dict:
                     # Reconstruct program from dict
                     child_program = Program(**result.child_program_dict)
 
                     # Add to database
-                    ray.get(self.database.add.remote(child_program, iteration=completed_iteration))
+                    ray.get(self.database.add.remote(child_program, iteration=current_iteration))
 
                     # Store artifacts
                     if result.artifacts:
@@ -94,7 +94,7 @@ class Orchestrator:
 
                     # Island management
                     if (
-                        completed_iteration > start_iteration
+                        current_iteration > start_iteration
                         and current_island_counter >= self.programs_per_island
                     ):
                         ray.get(self.database.next_island.remote())
@@ -108,13 +108,13 @@ class Orchestrator:
                     # Check migration
                     should_migrate = ray.get(self.database.should_migrate.remote())
                     if should_migrate:
-                        logger.info(f"Performing migration at iteration {completed_iteration}")
+                        logger.info(f"Performing migration at iteration {current_iteration}")
                         ray.get(self.database.migrate_programs.remote())
                         ray.get(self.database.log_island_status.remote())
 
                     # Log progress
                     logger.info(
-                        f"Iteration {completed_iteration}: "
+                        f"Iteration {current_iteration}: "
                         f"Program {child_program.id} "
                         f"(parent: {result.parent_id}) "
                         f"completed in {result.iteration_time:.2f}s"
@@ -152,7 +152,7 @@ class Orchestrator:
                     best_program_id = ray.get(self.database.get_best_program_id.remote())
                     if best_program_id == child_program.id:
                         logger.info(
-                            f"🌟 New best solution found at iteration {completed_iteration}: "
+                            f"🌟 New best solution found at iteration {current_iteration}: "
                             f"{child_program.id}"
                         )
                         # Save the new best program
@@ -167,14 +167,14 @@ class Orchestrator:
                             avg_score = sum(numeric_metrics) / len(numeric_metrics)
                             if avg_score >= self.target_score:
                                 logger.info(
-                                    f"Target score {self.target_score} reached at iteration {completed_iteration}"
+                                    f"Target score {self.target_score} reached at iteration {current_iteration}"
                                 )
                                 break
 
             except Exception as e:
-                logger.error(f"Error processing result from iteration {completed_iteration}: {e}")
+                logger.error(f"Error processing result from iteration {current_iteration}: {e}")
 
-            completed_iteration += 1
+            current_iteration += 1
 
         # Save final best program
         logger.info("Evolution completed. Saving final best program...")

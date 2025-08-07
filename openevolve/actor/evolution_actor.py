@@ -40,7 +40,6 @@ class EvolutionActor(Actor):
         self.llm_critic = llm_critic
         self.exe_critic = exe_critic
         self.language = config.language
-        self.iteration = config.iteration
         self.diff_based_evolution = config.diff_based_evolution
         self.max_code_length = config.max_code_length
         self.artifacts = {}
@@ -56,6 +55,8 @@ class EvolutionActor(Actor):
         """
 
         try:
+            iteration = kwargs.get("iteration", 0)
+
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
 
@@ -81,7 +82,7 @@ class EvolutionActor(Actor):
                 top_programs=[p.to_dict() for p in island_top_programs],
                 inspirations=[p.to_dict() for p in inspirations],
                 language=self.language,
-                evolution_round=self.iteration,
+                evolution_round=iteration,
                 diff_based_evolution=self.diff_based_evolution,
                 program_artifacts=parent_artifacts if parent_artifacts else None,
             )
@@ -94,7 +95,7 @@ class EvolutionActor(Actor):
                 messages=[{"role": "user", "content": prompt["user"]}],
             )
 
-            logger.debug(f"LLM response for iteration {self.iteration}: {llm_response}")
+            logger.debug(f"LLM response for iteration {iteration}: {llm_response}")
 
             # TODO : we are using llm ensemble, so we need to handle the response accordingly
             llm_response = llm_response[0]
@@ -105,7 +106,7 @@ class EvolutionActor(Actor):
 
                 if not diff_blocks:
                     logger.warning(
-                        f"Iteration {self.iteration+1}: No valid diffs found in response"
+                        f"Iteration {iteration+1}: No valid diffs found in response"
                     )
                     return None
 
@@ -117,7 +118,7 @@ class EvolutionActor(Actor):
                 new_code = parse_full_rewrite(llm_response, self.language)
 
                 if not new_code:
-                    logger.warning(f"Iteration {self.iteration+1}: No valid code found in response")
+                    logger.warning(f"Iteration {iteration}: No valid code found in response")
                     return None
 
                 child_code = new_code
@@ -126,7 +127,7 @@ class EvolutionActor(Actor):
             # Check code length
             if len(child_code) > self.max_code_length:
                 logger.warning(
-                    f"Iteration {self.iteration+1}: Generated code exceeds maximum length "
+                    f"Iteration {iteration}: Generated code exceeds maximum length "
                     f"({len(child_code)} > {self.max_code_length})"
                 )
                 return None
@@ -162,7 +163,7 @@ class EvolutionActor(Actor):
                     "parent_id": parent.id,
                     "generation": parent.generation + 1,
                     "metrics": exe_evaluation_result.metrics,
-                    "iteration_found": self.iteration,
+                    "iteration_found": iteration,
                     "metadata": {
                         "island": parent_island,
                         "changes_summary": changes_summary,
@@ -174,10 +175,10 @@ class EvolutionActor(Actor):
                 prompt=prompt,
                 llm_response=llm_response,
                 artifacts=self.artifacts if self.artifacts_enabled else None,
-                iteration=self.iteration,
+                iteration=iteration,
                 error=None,
             )
 
         except Exception as e:
-            logger.exception(f"Error in iteration {self.iteration}: {e}")
+            logger.exception(f"Error in iteration {iteration}: {e}")
             return None

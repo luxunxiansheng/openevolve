@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import ray
+import logging
 
 from openevolve.actor.evolution_actor import EvolutionActor
 
@@ -22,8 +23,12 @@ from openevolve.prompt.config import PromptConfig
 # Import the Orchestrator and its config
 from openevolve.database.config import DatabaseConfig
 
-python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
-output_path = "/workspaces/openevolve/tests/outputs"      
+python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"  # Replace with an actual script path
+output_path = "/workspaces/openevolve/tests/outputs"
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
@@ -41,10 +46,8 @@ class TestOrchestrator(unittest.TestCase):
             llm_actor_client=self.llm_actor_client,
             llm_critic=self.llm_critic,
             exe_critic=self.exe_critic,
-
         )
-        
-      
+
         with open(python_file_path, "r") as file:
             python_code = file.read()
 
@@ -65,19 +68,18 @@ class TestOrchestrator(unittest.TestCase):
             evolution_actor=self.actor,
             output_dir=output_path,
         )
-            
-
 
     def tearDown(self):
         # Cleanup after tests
         pass
+
     def test_run_basic(self):
         # Test basic run of orchestrator
         async def run_test():
             await self.orchestrator.run()
-        
+
         asyncio.run(run_test())
-       
+
     def test_save_best_program(self):
         # Test saving best program logic
         pass

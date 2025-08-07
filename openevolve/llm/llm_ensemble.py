@@ -91,7 +91,7 @@ class EnsembleLLM(LLMInterface):
         """Generate text using a all available models and average their returned metrics"""
         
         # print the messages for debugging
-        print(f"Generating with context: {system_message}, messages: {messages}")
+        logger.debug(f"Generating with context: {system_message}, messages: {messages}")
         
         
         tasks = [

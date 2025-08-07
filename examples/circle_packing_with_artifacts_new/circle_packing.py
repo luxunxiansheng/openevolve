@@ -88,15 +88,6 @@ def compute_max_radii(centers):
 # EVOLVE-BLOCK-END
 
 
-# This part remains fixed (not evolved)
-def run_packing():
-    """Run the circle packing constructor for n=26"""
-    centers, radii, sum_radii = construct_packing()
-    return centers, radii, sum_radii
 
-if __name__ == "__main__":
-    centers, radii, sum_radii = run_packing()
-    print(f"Sum of radii: {sum_radii}")
-    # AlphaEvolve improved this to 2.635
 
 

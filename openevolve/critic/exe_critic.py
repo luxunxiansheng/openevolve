@@ -8,6 +8,7 @@ import ast
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
+from openevolve.critic.config import CriticConfig
 from openevolve.critic.critic import EvaluationResult, Critic
 
 logger = logging.getLogger(__name__)
@@ -19,18 +20,15 @@ class PythonExecutionCritic(Critic):
     It also extracts evaluation results from the job logs.
     """
 
-    # Constants for job management
-    DEFAULT_RAY_HEAD_IP = "http://127.0.0.1:8265"
-    JOB_TIMEOUT_SECONDS = 3600  # 1 hour
-    STATUS_CHECK_INTERVAL = 5  # seconds
-    JOB_STOP_WAIT_TIME = 30  # seconds
-    DELETION_WAIT_TIME = 1  # second
-
     def __init__(
         self,
-        ray_cluster_head_ip: str = DEFAULT_RAY_HEAD_IP,
+        config: CriticConfig = CriticConfig(),
     ) -> None:
-        self.job_client = JobSubmissionClient(ray_cluster_head_ip)
+        self.job_client = JobSubmissionClient(config.default_ray_head_ip)
+        self.job_timeout_seconds = config.job_timeout_seconds
+        self.status_check_interval = config.status_check_interval
+        self.job_stop_wait_time = config.job_stop_wait_time
+        self.delteion_wait_time = config.deletion_wait_time
 
     async def evaluate(self, **kwargs) -> EvaluationResult:
         """
@@ -44,7 +42,7 @@ class PythonExecutionCritic(Critic):
             EvaluationResult containing metrics and artifacts from execution
         """
         # Extract and validate parameters
-        python_code = kwargs.get("python_code", "")
+        python_exe_code = kwargs.get("python_exe_code", "")
         program_id = kwargs.get("program_id")
         runtime_env = kwargs.get("runtime_env", {})
 
@@ -57,7 +55,7 @@ class PythonExecutionCritic(Critic):
         # Submit and monitor job
         with tempfile.TemporaryDirectory() as temp_dir:
             submission_id = self._submit_evaluation_job(
-                python_code, program_id, runtime_env, temp_dir
+                python_exe_code, program_id, runtime_env, temp_dir
             )
 
             # Wait for job completion and get results
@@ -120,13 +118,13 @@ class PythonExecutionCritic(Critic):
 
             # Check for timeout
             elapsed_time = time.time() - start_time
-            if elapsed_time > self.JOB_TIMEOUT_SECONDS:
+            if elapsed_time > self.job_timeout_seconds:
                 logger.error(
-                    f"Job {submission_id} timed out after {self.JOB_TIMEOUT_SECONDS} seconds."
+                    f"Job {submission_id} timed out after {self.job_timeout_seconds} seconds."
                 )
                 break
 
-            time.sleep(self.STATUS_CHECK_INTERVAL)
+            time.sleep(self.status_check_interval)
 
         # Get and return logs
         log_output = self.job_client.get_job_logs(submission_id)
@@ -343,7 +341,7 @@ class PythonExecutionCritic(Critic):
             # Delete the job to allow reuse of the submission_id
             logger.info(f"Deleting existing job {job_id} to reuse submission_id")
             self.job_client.delete_job(job_id)
-            time.sleep(self.DELETION_WAIT_TIME)
+            time.sleep(self.delteion_wait_time)  # Wait for deletion to complete
 
         except Exception as e:
             # Job might not exist, which is fine for new submissions
@@ -352,7 +350,7 @@ class PythonExecutionCritic(Critic):
     def _wait_for_job_to_stop(self, job_id: str) -> None:
         """Wait for a job to stop within the timeout period."""
         wait_time = 0
-        while wait_time < self.JOB_STOP_WAIT_TIME:
+        while wait_time < self.job_stop_wait_time:
             status = self.job_client.get_job_status(job_id)
             if status in [JobStatus.STOPPED, JobStatus.FAILED, JobStatus.SUCCEEDED]:
                 logger.info(f"Job {job_id} stopped with status: {status}")
@@ -360,7 +358,7 @@ class PythonExecutionCritic(Critic):
             time.sleep(1)
             wait_time += 1
 
-        logger.warning(f"Job {job_id} did not stop within {self.JOB_STOP_WAIT_TIME} seconds")
+        logger.warning(f"Job {job_id} did not stop within {self.job_stop_wait_time} seconds")
 
     def _parse_artifacts_dict(self, artifacts_str: str) -> dict:
         """

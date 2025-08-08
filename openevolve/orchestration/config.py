@@ -8,5 +8,5 @@ class OrchestratorConfig:
     language: str = "python"
     programs_per_island: int = 50
     diff_based_evolution: bool = False
-    target_score: Optional[float] = None
+    target_score: Optional[float] = 2.5
     file_extension: str = ".py"

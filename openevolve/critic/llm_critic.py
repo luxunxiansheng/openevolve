@@ -40,8 +40,8 @@ class LLMCritic(Critic):
         Returns:
             EvaluationResult: The result of the evaluation containing metrics and artifacts.
         """
-        program_code = kwargs.get("program_code")
-        if not program_code:
+        evolved_program_code = kwargs.get("evolved_program_code")
+        if not evolved_program_code:
             raise ValueError("program_code must be provided for evaluation.")
         
         program_id = kwargs.get("program_id", "default_program_id")
@@ -51,7 +51,7 @@ class LLMCritic(Critic):
         try:
             # Create prompt for LLM
             prompt = self.prompt_sampler.build_prompt(
-                current_program=program_code, template_key="evaluation"
+                current_program=evolved_program_code, template_key="evaluation"
             )
 
             # Get LLM response

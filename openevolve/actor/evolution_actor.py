@@ -47,15 +47,21 @@ class EvolutionActor(Actor):
         self.island_top_programs_limit = config.island_top_programs_limit  # Limit for top programs per island
         self.island_previous_programs_limit = config.island_previous_programs_limit  # Limit for previous programs per island
 
+    def _enclose_code_block(self, code: str) -> str:
+        """
+        Enclose code block with EVOLVE-BLOCK-START and EVOLVE-BLOCK-END comments if not already present.
+        """
+        if "# EVOLVE-BLOCK-START" not in code and "# EVOLVE-BLOCK-END" not in code:
+            return f"# EVOLVE-BLOCK-START\n{code}\n# EVOLVE-BLOCK-END"
+        return code
+
     async def act(self, **kwargs) -> ActionResult:
         """
         Perform the evolution action based on the provided parameters.
         """
 
         try:
-            critic_program = kwargs.get("critic_program")
-            if not critic_program:
-                raise ValueError("critic_program must be provided in kwargs")
+
             iteration = kwargs.get("iteration", 0)
 
             # Sample parent and inspirations from database (Ray actor)
@@ -122,6 +128,9 @@ class EvolutionActor(Actor):
                     logger.warning(f"Iteration {iteration}: No valid code found in response")
                     return None
 
+                # add # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END comments to enclose the code block if # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END not present in the new code 
+                new_code = self._enclose_code_block(new_code)
+
                 evovled_child_code = new_code
                 changes_summary = "Full rewrite"
 
@@ -137,12 +146,12 @@ class EvolutionActor(Actor):
 
             # Evaluate the child code
             exe_evaluation_result = await self.exe_critic.evaluate(
-                python_code=evovled_child_code, program_id=child_id
+                evolved_program_code=evovled_child_code, program_id=child_id
             )
             llm_evaluation_result = None
             if self.use_llm_critic:
                 llm_evaluation_result = await self.llm_critic.evaluate(
-                    program_code=evovled_child_code, program_id=child_id
+                    evolved_program_code=evovled_child_code, program_id=child_id
                 )
 
                 for name, value in llm_evaluation_result.metrics.items():

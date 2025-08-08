@@ -1,71 +1,23 @@
 import unittest
 import asyncio
-import ray
 import logging
 
-from openevolve.actor.evolution_actor import EvolutionActor
-
-from openevolve.critic.exe_critic import PythonExecutionCritic
-
-from openevolve.critic.llm_critic import LLMCritic
-
-from openevolve.llm.llm_ensemble import EnsembleLLM
-
 from openevolve.orchestration.orchestrator import Orchestrator
-from openevolve.prompt.sampler import PromptSampler
-
-from openevolve.database.database import Program, ProgramDatabase
-
-from openevolve.llm.config import LLMConfig
-
-from openevolve.prompt.config import PromptConfig
 
 # Import the Orchestrator and its config
-from openevolve.database.config import DatabaseConfig
 
-python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
+python_critic_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
+evoved_program_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"  # Replace with an actual script path
 output_path = "/workspaces/openevolve/tests/outputs"
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
-        db_config = DatabaseConfig()
-        prompt_config = PromptConfig()
-        llm_config = LLMConfig()
-        self.database = ray.remote(ProgramDatabase).remote(db_config)
-        self.prompt_sampler = PromptSampler(prompt_config)
-        self.llm_actor_client = EnsembleLLM([llm_config])
-        self.llm_critic = LLMCritic(self.llm_actor_client, self.prompt_sampler)
-        self.exe_critic = PythonExecutionCritic()
-        self.actor = EvolutionActor(
-            database=self.database,
-            prompt_sampler=self.prompt_sampler,
-            llm_actor_client=self.llm_actor_client,
-            llm_critic=self.llm_critic,
-            exe_critic=self.exe_critic,
-        )
-
-        with open(python_file_path, "r") as file:
-            python_code = file.read()
-
-        init_program = Program(
-            id="parent1",
-            code=python_code,
-            language="python",
-            parent_id=None,
-            generation=0,
-            metrics={},
-            iteration_found=0,
-            metadata={},
-        )
-
         self.orchestrator = Orchestrator(
-            initial_program=init_program,
-            database=self.database,
-            evolution_actor=self.actor,
+            critic_program_path= python_critic_path,
+            evoved_program_path=evoved_program_path,
             output_dir=output_path,
         )
 

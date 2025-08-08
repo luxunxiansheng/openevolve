@@ -7,7 +7,7 @@ import uuid
 import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.actor.actor import ActionResult
-from ..database.config import DatabaseConfig
+from openevolve.database.config import DatabaseConfig
 from openevolve.database.database import Program
 from openevolve.orchestration.config import OrchestratorConfig
 from openevolve.actor.evolution_actor import EvolutionActor
@@ -18,7 +18,6 @@ from openevolve.critic.llm_critic import LLMCritic
 
 from openevolve.llm.llm_ensemble import EnsembleLLM
 
-from openevolve.orchestration.orchestrator import Orchestrator
 from openevolve.prompt.sampler import PromptSampler
 
 from openevolve.database.database import Program, ProgramDatabase
@@ -34,34 +33,14 @@ logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
-    def __init__(
-        self,
-        critic_program_path: str,
-        evoved_program_path: str,
-        database,
-        evolution_actor: EvolutionActor,
-        output_dir: str,
-        config: OrchestratorConfig = OrchestratorConfig(),
-    ):
-        self.critic_program_path = critic_program_path
-        self.evolved_program_path = evoved_program_path
-        
-        self.database = database
-        self.evolution_actor = evolution_actor
-        self.output_dir = output_dir
-        self.config = config
-        self.target_score = config.target_score
-        self.max_iterations = config.max_iterations
-        self.language = config.language
-        self.programs_per_island = config.programs_per_island
-        self.diff_based_evolution = config.diff_based_evolution
-        self.file_extension = config.file_extension
-        self.critic_program = None 
 
-    def init(self,
+
+    def __init__(self,
             critic_program_path,
             evoved_program_path,
-
+            output_dir: str,
+            
+            orchestrator_config: OrchestratorConfig = OrchestratorConfig(),
             db_config:DatabaseConfig=DatabaseConfig(),
             prompt_config:PromptConfig=PromptConfig(),
             llm_config:LLMConfig=LLMConfig(),
@@ -69,6 +48,13 @@ class Orchestrator:
     ):
         
         self.evolved_program_path = evoved_program_path
+        self.output_dir = output_dir
+        self.max_iterations = orchestrator_config.max_iterations
+        self.target_score = orchestrator_config.target_score
+        self.file_extension = orchestrator_config.file_extension
+        self.language = orchestrator_config.language
+        self.diff_based_evolution = orchestrator_config.diff_based_evolution
+        self.programs_per_island = orchestrator_config.programs_per_island
         
         self.database = ray.remote(ProgramDatabase).remote(db_config)
         

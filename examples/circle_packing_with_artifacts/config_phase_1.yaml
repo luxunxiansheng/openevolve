@@ -54,7 +54,7 @@ database:
 # Evaluator configuration
 evaluator:
   timeout: 60
-  cascade_evaluation: true
+  cascade_evaluation: false
   cascade_thresholds: [0.5, 0.75]
   parallel_evaluations: 4
   use_llm_feedback: true

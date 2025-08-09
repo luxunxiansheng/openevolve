@@ -19,7 +19,7 @@ class LLMConfig:
     weight: float = 1.0
 
     # Generation parameters
-    system_message: Optional[str] = "system_message"
+    system_message: Optional[str] = None
     temperature: float = 0.6
     top_p: float = 0.95
     top_k: int = 20

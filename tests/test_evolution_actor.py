@@ -26,7 +26,7 @@ class TestEvolutionActor(unittest.TestCase):
         self.exe_critic = PythonExecutionCritic()
         self.actor = EvolutionActor(
             database=self.database,
-            generate_prompt_sampler=self.prompt_sampler,
+            prompt_sampler=self.prompt_sampler,
             llm_actor_client=self.llm_actor_client,
             llm_critic=self.llm_critic,
             exe_critic=self.exe_critic,

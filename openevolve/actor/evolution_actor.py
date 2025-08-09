@@ -6,7 +6,6 @@ import ray
 from ray.actor import ActorHandle
 
 from openevolve.actor.actor import Actor, ActionResult
-from openevolve.actor.config import EvolutionActorConfig
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.llm.llm_interface import LLMInterface
@@ -26,28 +25,36 @@ class EvolutionActor(Actor):
     def __init__(
         self,
         database: ActorHandle,  # Explicit Ray actor handle
-        generate_prompt_sampler: PromptSampler,
-        critic_prompt_sampler: PromptSampler,
+        prompt_sampler: PromptSampler,
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
-        config: EvolutionActorConfig = EvolutionActorConfig(),
+        language: str="python",
+        diff_based_evolution: bool=False,
+        max_code_length: int= 20480,
+        use_llm_critic: bool = True,
+        llm_feedback_weight: float=0.1,
+        artifacts_enabled: bool=True,
+        island_top_programs_limit: int=3,
+        island_diverse_programs_limit: int=2,
     ) -> None:
         self.database = database
-        self.generate_prompt_sampler = generate_prompt_sampler
-        self.critic_prompt_sampler = critic_prompt_sampler
+
+        self.prompt_sampler = prompt_sampler
         self.llm_actor_client = llm_actor_client
+
         self.llm_critic = llm_critic
         self.exe_critic = exe_critic
-        self.language = config.language
-        self.diff_based_evolution = config.diff_based_evolution
-        self.max_code_length = config.max_code_length
+
+        self.language = language
+        self.diff_based_evolution = diff_based_evolution
+        self.max_code_length = max_code_length
         self.artifacts = {}
-        self.use_llm_critic = config.use_llm_critic
-        self.llm_feedback_weight = config.llm_feedback_weight
-        self.artifacts_enabled = config.artifacts_enabled
-        self.top_programs_limit = config.island_top_programs_limit
-        self.island_diverse_programs_limit = config.island_diverse_programs_limit
+        self.use_llm_critic = use_llm_critic
+        self.llm_feedback_weight = llm_feedback_weight
+        self.artifacts_enabled = artifacts_enabled
+        self.top_programs_limit = island_top_programs_limit
+        self.island_diverse_programs_limit = island_diverse_programs_limit
 
     def _enclose_code_block(self, code: str) -> str:
         """
@@ -88,7 +95,7 @@ class EvolutionActor(Actor):
             )
 
             # Build prompt
-            prompt = self.generate_prompt_sampler.build_prompt(
+            prompt = self.prompt_sampler.build_prompt(
                 current_program=parent.code,
                 parent_program=parent.code,
                 program_metrics=parent.metrics,

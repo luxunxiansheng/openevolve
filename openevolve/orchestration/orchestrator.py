@@ -30,6 +30,7 @@ class Orchestrator:
         critic_program_path,
         evoved_program_path,
         output_dir: str,
+        
         orchestrator_config: OrchestratorConfig = OrchestratorConfig(),
         db_config: DatabaseConfig = DatabaseConfig(),
         prompt_config: PromptConfig = PromptConfig(),
@@ -58,7 +59,7 @@ class Orchestrator:
 
         self.evolution_actor = EvolutionActor(
             database=self.database,
-            generate_prompt_sampler=prompt_sampler,
+            prompt_sampler=prompt_sampler,
             llm_actor_client=llm_client,
             llm_critic=llm_critic,
             exe_critic=exe_critic,

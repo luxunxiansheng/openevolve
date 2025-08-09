@@ -8,7 +8,6 @@ import ast
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from openevolve.critic.config import CriticConfig
 from openevolve.critic.critic import EvaluationResult, Critic
 
 logger = logging.getLogger(__name__)
@@ -18,14 +17,18 @@ class PythonExecutionCritic(Critic):
     def __init__(
         self,
         critic_program_path: str,
-        config: CriticConfig = CriticConfig(),
+        ray_head_ip: str = "http://127.0.0.1:8265",
+        job_timeout_seconds: int = 300,
+        status_check_interval: int = 5,
+        job_stop_wait_time: int = 30,
+        deletion_wait_time: int = 2,
     ) -> None:
         self.critic_program_path = critic_program_path
-        self.job_client = JobSubmissionClient(config.default_ray_head_ip)
-        self.job_timeout_seconds = config.job_timeout_seconds
-        self.status_check_interval = config.status_check_interval
-        self.job_stop_wait_time = config.job_stop_wait_time
-        self.delteion_wait_time = config.deletion_wait_time
+        self.job_client = JobSubmissionClient(ray_head_ip)
+        self.job_timeout_seconds = job_timeout_seconds
+        self.status_check_interval = status_check_interval
+        self.job_stop_wait_time = job_stop_wait_time
+        self.delteion_wait_time = deletion_wait_time
 
         self.critic_program = None
 

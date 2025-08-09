@@ -18,26 +18,35 @@ class OpenAILLM(LLMInterface):
 
     def __init__(
         self,
-        model_cfg: Dict[str, Any] 
+        name: str = "Qwen3-14B-AWQ",
+        system_message: Optional[str] = None,
+        temperature: float = 0.6,
+        top_p: float = 0.95,
+        max_tokens: int = 20480,
+        timeout: int = 120,
+        retries: int = 3,
+        retry_delay: int = 5,
+        api_base: str = "http://localhost:8010/v1",
+        api_key: Optional[str] = "none",
+        random_seed: Optional[int] = 0,
     ):
-        self.model = model_cfg.name
-        self.system_message = model_cfg.system_message
-        self.temperature = model_cfg.temperature
-        self.top_p = model_cfg.top_p
-        self.max_tokens = model_cfg.max_tokens
-        self.timeout = model_cfg.timeout
-        self.retries = model_cfg.retries
-        self.retry_delay = model_cfg.retry_delay
-        self.api_base = model_cfg.api_base
-        self.api_key = model_cfg.api_key
-        self.random_seed = getattr(model_cfg, "random_seed", None)
+        self.model = name
+        self.system_message = system_message
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+        self.retries = retries
+        self.retry_delay = retry_delay
+        self.api_base = api_base
+        self.api_key = api_key
+        self.random_seed = random_seed
 
         # Set up API client
         self.client = openai.OpenAI(
             api_key=self.api_key,
             base_url=self.api_base,
         )
-
 
     async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text from a prompt"""

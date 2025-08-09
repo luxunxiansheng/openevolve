@@ -9,21 +9,19 @@ from openevolve.prompt.sampler import PromptSampler
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.llm.llm_ensemble import EnsembleLLM
-from openevolve.database.config import DatabaseConfig
-from openevolve.prompt.config import PromptConfig
-from openevolve.llm.config import LLMConfig
+from openevolve.llm.llm_openai import OpenAILLM
 
 
 class TestEvolutionActor(unittest.TestCase):
     def setUp(self):
-        db_config = DatabaseConfig()
-        prompt_config = PromptConfig()
-        llm_config = LLMConfig()
-        self.database = ray.remote(ProgramDatabase).remote(db_config)
-        self.prompt_sampler = PromptSampler(prompt_config)
-        self.llm_actor_client = EnsembleLLM([llm_config])
+        self.database = ray.remote(ProgramDatabase).remote()
+        self.prompt_sampler = PromptSampler()
+        self.llm_actor_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
         self.llm_critic = LLMCritic(self.llm_actor_client, self.prompt_sampler)
-        self.exe_critic = PythonExecutionCritic()
+        python_file_path = (
+            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+        )
+        self.exe_critic = PythonExecutionCritic(critic_program_path=python_file_path)
         self.actor = EvolutionActor(
             database=self.database,
             prompt_sampler=self.prompt_sampler,
@@ -31,8 +29,6 @@ class TestEvolutionActor(unittest.TestCase):
             llm_critic=self.llm_critic,
             exe_critic=self.exe_critic,
         )
-
-        python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
 
         with open(python_file_path, "r") as file:
             python_code = file.read()

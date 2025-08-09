@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 
-from openevolve.database.config import DatabaseConfig
+
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,56 @@ class ProgramDatabase:
     It also tracks the absolute best program separately to ensure it's never lost.
     """
 
-    def __init__(self, config: DatabaseConfig):
-        self.config = config
+
+    def __init__(
+        self,
+        db_path: Optional[str] = None,
+        in_memory: bool = True,
+        log_prompts: bool = True,
+        population_size: int = 1000,
+        archive_size: int = 100,
+        num_islands: int = 5,
+        elite_selection_ratio: float = 0.1,
+        exploration_ratio: float = 0.2,
+        exploitation_ratio: float = 0.7,
+        diversity_metric: str = "edit_distance",
+        feature_dimensions: Optional[List[str]] = None,
+        feature_bins: Union[int, Dict[str, int]] = 10,
+        diversity_reference_size: int = 20,
+        migration_interval: int = 50,
+        migration_rate: float = 0.1,
+        random_seed: Optional[int] = 42,
+        artifacts_base_path: Optional[str] = None,
+        artifact_size_threshold: int = 32 * 1024,
+        cleanup_old_artifacts: bool = True,
+        artifact_retention_days: int = 30,
+        num_inspirations: int = 5
+    ):
+        # Assign all config fields as attributes
+        self.db_path = db_path
+        self.in_memory = in_memory
+        self.log_prompts = log_prompts
+        self.population_size = population_size
+        self.archive_size = archive_size
+        self.num_islands = num_islands
+        self.elite_selection_ratio = elite_selection_ratio
+        self.exploration_ratio = exploration_ratio
+        self.exploitation_ratio = exploitation_ratio
+        self.diversity_metric = diversity_metric
+        if feature_dimensions is None:
+            self.feature_dimensions = ["complexity", "diversity"]
+        else:
+            self.feature_dimensions = feature_dimensions
+        self.feature_bins = feature_bins
+        self.diversity_reference_size = diversity_reference_size
+        self.migration_interval = migration_interval
+        self.migration_rate = migration_rate
+        self.random_seed = random_seed
+        self.artifacts_base_path = artifacts_base_path
+        self.artifact_size_threshold = artifact_size_threshold
+        self.cleanup_old_artifacts = cleanup_old_artifacts
+        self.artifact_retention_days = artifact_retention_days
+        self.num_inspirations = num_inspirations
 
         # In-memory program storage
         self.programs: Dict[str, Program] = {}
@@ -105,24 +153,23 @@ class ProgramDatabase:
         self.feature_map: Dict[str, str] = {}
 
         # Handle both int and dict types for feature_bins
-        if isinstance(config.feature_bins, int):
+        if isinstance(self.feature_bins, int):
             self.feature_bins = max(
-                config.feature_bins,
-                int(pow(config.archive_size, 1 / len(config.feature_dimensions)) + 0.99),
+                self.feature_bins,
+                int(pow(self.archive_size, 1 / len(self.feature_dimensions)) + 0.99),
             )
         else:
             # If dict, keep as is (we'll use feature_bins_per_dim instead)
             self.feature_bins = 10  # Default fallback for backward compatibility
 
         # Island populations
-        self.islands: List[Set[str]] = [set() for _ in range(config.num_islands)]
+        self.islands: List[Set[str]] = [set() for _ in range(self.num_islands)]
 
         # Island management attributes
         self.current_island: int = 0
-        self.island_generations: List[int] = [0] * config.num_islands
+        self.island_generations: List[int] = [0] * self.num_islands
         self.last_migration_generation: int = 0
-        self.migration_interval: int = getattr(config, "migration_interval", 10)  # Default to 10
-        self.migration_rate: float = getattr(config, "migration_rate", 0.1)  # Default to 0.1
+        # migration_interval and migration_rate already set as attributes
 
         # Archive of elite programs
         self.archive: Set[str] = set()
@@ -131,46 +178,40 @@ class ProgramDatabase:
         self.best_program_id: Optional[str] = None
 
         # Track best program per island for proper island-based evolution
-        self.island_best_programs: List[Optional[str]] = [None] * config.num_islands
+        self.island_best_programs: List[Optional[str]] = [None] * self.num_islands
 
         # Track the last iteration number (for resuming)
         self.last_iteration: int = 0
 
         # Load database from disk if path is provided
-        if config.db_path and os.path.exists(config.db_path):
-            self.load(config.db_path)
+        if self.db_path and os.path.exists(self.db_path):
+            self.load(self.db_path)
 
         # Prompt log
-        self.prompts_by_program: Dict[str, Dict[str, Dict[str, str]]] = None
+        self.prompts_by_program = None
 
         # Set random seed for reproducible sampling if specified
-        if config.random_seed is not None:
-            import random
-
-            random.seed(config.random_seed)
-            logger.debug(f"Database: Set random seed to {config.random_seed}")
+        if self.random_seed is not None:
+            random.seed(self.random_seed)
+            logger.debug(f"Database: Set random seed to {self.random_seed}")
 
         # Diversity caching infrastructure
-        self.diversity_cache: Dict[int, Dict[str, Union[float, float]]] = (
-            {}
-        )  # hash -> {"value": float, "timestamp": float}
-        self.diversity_cache_size: int = 1000  # LRU cache size
-        self.diversity_reference_set: List[str] = (
-            []
-        )  # Reference program codes for consistent diversity
-        self.diversity_reference_size: int = getattr(config, "diversity_reference_size", 20)
+        self.diversity_cache = {}
+        self.diversity_cache_size = 1000  # LRU cache size
+        self.diversity_reference_set = []  # Reference program codes for consistent diversity
+        # diversity_reference_size already set as attribute
 
         # Feature scaling infrastructure
-        self.feature_stats: Dict[str, Dict[str, Union[float, float, List[float]]]] = {}
-        self.feature_scaling_method: str = "minmax"  # Options: minmax, zscore, percentile
+        self.feature_stats = {}
+        self.feature_scaling_method = "minmax"  # Options: minmax, zscore, percentile
 
         # Per-dimension bins support
-        if hasattr(config, "feature_bins") and isinstance(config.feature_bins, dict):
-            self.feature_bins_per_dim = config.feature_bins
+        if isinstance(self.feature_bins, dict):
+            self.feature_bins_per_dim = self.feature_bins
         else:
             # Backward compatibility - use same bins for all dimensions
             self.feature_bins_per_dim = {
-                dim: self.feature_bins for dim in config.feature_dimensions
+                dim: self.feature_bins for dim in self.feature_dimensions
             }
 
         logger.info(f"Initialized program database with {len(self.programs)} programs")
@@ -194,7 +235,7 @@ class ProgramDatabase:
         return self.current_island
 
     def add(
-        self, program: Program, iteration: int = None, target_island: Optional[int] = None
+        self, program: Program, iteration: Optional[int] = None, target_island: Optional[int] = None
     ) -> str:
         """
         Add a program to the database
@@ -239,7 +280,7 @@ class ProgramDatabase:
         if should_replace:
             # Log significant MAP-Elites events
             coords_dict = {
-                self.config.feature_dimensions[i]: feature_coords[i]
+                self.feature_dimensions[i]: feature_coords[i]
                 for i in range(len(feature_coords))
             }
 
@@ -247,7 +288,12 @@ class ProgramDatabase:
                 # New cell occupation
                 logger.info("New MAP-Elites cell occupied: %s", coords_dict)
                 # Check coverage milestone
-                total_possible_cells = self.feature_bins ** len(self.config.feature_dimensions)
+                if isinstance(self.feature_bins, int):
+                    total_possible_cells = self.feature_bins ** len(self.feature_dimensions)
+                else:
+                    total_possible_cells = 1
+                    for dim in self.feature_dimensions:
+                        total_possible_cells *= self.feature_bins.get(dim, 10)
                 coverage = (len(self.feature_map) + 1) / total_possible_cells
                 if coverage in [0.1, 0.25, 0.5, 0.75, 0.9]:
                     logger.info(
@@ -299,7 +345,7 @@ class ProgramDatabase:
         self._update_island_best_program(program, island_idx)
 
         # Save to disk if configured
-        if self.config.db_path:
+        if self.db_path:
             self._save_program(program)
 
         logger.debug(f"Added program {program.id} to island {island_idx}")
@@ -329,10 +375,9 @@ class ProgramDatabase:
         parent = self._sample_parent()
 
         # Select inspirations
-        inspirations = self._sample_inspirations(parent, n=getattr(self.config, 'num_inspirations', 5))
-
-        logger.debug(f"Sampled parent {parent.id} and {len(inspirations)} inspirations")
-        return parent, inspirations
+    inspirations = self._sample_inspirations(parent, n=self.num_inspirations)
+    logger.debug(f"Sampled parent {parent.id} and {len(inspirations)} inspirations")
+    return parent, inspirations
 
     def get_best_program(self, metric: Optional[str] = None) -> Optional[Program]:
         """
@@ -467,7 +512,7 @@ class ProgramDatabase:
             path: Path to save to (uses config.db_path if None)
             iteration: Current iteration number
         """
-        save_path = path or self.config.db_path
+        save_path = path or self.db_path
         if not save_path:
             logger.warning("No database path specified, skipping save")
             return
@@ -479,7 +524,7 @@ class ProgramDatabase:
         for program in self.programs.values():
             prompts = None
             if (
-                self.config.log_prompts
+                self.log_prompts
                 and self.prompts_by_program
                 and program.id in self.prompts_by_program
             ):
@@ -575,7 +620,7 @@ class ProgramDatabase:
             saved_islands: List of island program ID lists from metadata
         """
         # Initialize empty islands
-        num_islands = max(len(saved_islands), self.config.num_islands)
+    num_islands = max(len(saved_islands), self.num_islands)
         self.islands = [set() for _ in range(num_islands)]
 
         missing_programs = []
@@ -670,7 +715,7 @@ class ProgramDatabase:
             base_path: Base path to save to (uses config.db_path if None)
             prompts: Optional prompts to save with the program, in the format {template_key: { 'system': str, 'user': str }}
         """
-        save_path = base_path or self.config.db_path
+        save_path = base_path or self.db_path
         if not save_path:
             return
 
@@ -699,7 +744,7 @@ class ProgramDatabase:
         """
         coords = []
 
-        for dim in self.config.feature_dimensions:
+    for dim in self.feature_dimensions:
             if dim == "complexity":
                 # Use code length as complexity measure
                 complexity = len(program.code)
@@ -722,7 +767,7 @@ class ProgramDatabase:
                     # Update stats and scale
                     self._update_feature_stats("score", avg_score)
                     scaled_value = self._scale_feature_value("score", avg_score)
-                    num_bins = self.feature_bins_per_dim.get("score", self.feature_bins)
+                    num_bins = self.feature_bins_per_dim.get("score", self.feature_bins if isinstance(self.feature_bins, int) else 10)
                     bin_idx = int(scaled_value * num_bins)
                     bin_idx = max(0, min(num_bins - 1, bin_idx))
                 coords.append(bin_idx)
@@ -732,7 +777,7 @@ class ProgramDatabase:
                 # Update stats and scale
                 self._update_feature_stats(dim, score)
                 scaled_value = self._scale_feature_value(dim, score)
-                num_bins = self.feature_bins_per_dim.get(dim, self.feature_bins)
+                num_bins = self.feature_bins_per_dim.get(dim, self.feature_bins if isinstance(self.feature_bins, int) else 10)
                 bin_idx = int(scaled_value * num_bins)
                 bin_idx = max(0, min(num_bins - 1, bin_idx))
                 coords.append(bin_idx)
@@ -746,7 +791,7 @@ class ProgramDatabase:
         # Only log coordinates at debug level for troubleshooting
         logger.debug(
             "MAP-Elites coords: %s",
-            str({self.config.feature_dimensions[i]: coords[i] for i in range(len(coords))}),
+            str({self.feature_dimensions[i]: coords[i] for i in range(len(coords))}),
         )
         return coords
 
@@ -767,13 +812,12 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("complexity", float(complexity))
 
         # Get number of bins for this dimension
-        num_bins = self.feature_bins_per_dim.get("complexity", self.feature_bins)
+    num_bins = self.feature_bins_per_dim.get("complexity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
 
         # Convert to bin index
-        bin_idx = int(scaled_value * num_bins)
-
-        # Ensure bin index is within valid range
-        bin_idx = max(0, min(num_bins - 1, bin_idx))
+    bin_idx = int(scaled_value * num_bins)
+    # Ensure bin index is within valid range
+    bin_idx = max(0, min(num_bins - 1, bin_idx))
 
         return bin_idx
 
@@ -794,13 +838,12 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("diversity", diversity)
 
         # Get number of bins for this dimension
-        num_bins = self.feature_bins_per_dim.get("diversity", self.feature_bins)
+    num_bins = self.feature_bins_per_dim.get("diversity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
 
         # Convert to bin index
-        bin_idx = int(scaled_value * num_bins)
-
-        # Ensure bin index is within valid range
-        bin_idx = max(0, min(num_bins - 1, bin_idx))
+    bin_idx = int(scaled_value * num_bins)
+    # Ensure bin index is within valid range
+    bin_idx = max(0, min(num_bins - 1, bin_idx))
 
         return bin_idx
 

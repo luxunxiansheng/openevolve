@@ -1,45 +1,47 @@
 import asyncio
 import unittest
 from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.llm.config import LLMConfig
 
-from openevolve.llm.config import EnsembleLLMConfig
 
 class TestOpenAILLM(unittest.TestCase):
     def setUp(self):
-        # Use OpenAILLM with a default LLMConfig object
-        self.llm = OpenAILLM(LLMConfig())
+        # Use OpenAILLM with default arguments
+        self.llm = OpenAILLM()
 
     def test_ensemble_config(self):
         # Create an ensemble with two models of different weights
-        model1 = LLMConfig(name="Qwen3-14B-AWQ", weight=1.0)
-        model2 = LLMConfig(name="Qwen3-14B-AWQ", weight=3.0)
-        ensemble = EnsembleLLMConfig(ensemble_models=[model1, model2])
+        model1 = {"name": "Qwen3-14B-AWQ", "weight": 1.0}
+        model2 = {"name": "Qwen3-14B-AWQ", "weight": 3.0}
+        ensemble = [model1, model2]
         # Check that the ensemble contains both models
-        self.assertEqual(len(ensemble.ensemble_models), 2)
+        self.assertEqual(len(ensemble), 2)
         # Check that weights are normalized correctly
-        normalized = ensemble.get_normalized_weights()
+        total_weight = sum(m["weight"] for m in ensemble)
+        normalized = [m["weight"] / total_weight for m in ensemble]
         self.assertAlmostEqual(normalized[0], 0.25)
         self.assertAlmostEqual(normalized[1], 0.75)
         # Check that the weights property matches the model weights
-        self.assertEqual(ensemble.weights, [1.0, 3.0])
+        self.assertEqual([m["weight"] for m in ensemble], [1.0, 3.0])
 
     def test_generate(self):
         async def run():
             result = await self.llm.generate("can you program a python app?")
             print("Result:", result)
             self.assertIsInstance(result, str)
+
         asyncio.run(run())
 
     def test_generate_with_context(self):
         async def run():
             result = await self.llm.generate_with_context(
                 system_message="Test system",
-                messages=[{"role": "user", "content": "can you program a python app"}]
+                messages=[{"role": "user", "content": "can you program a python app"}],
             )
             print("Result:", result)
             self.assertIsInstance(result, str)
+
         asyncio.run(run())
+
 
 if __name__ == "__main__":
     unittest.main()

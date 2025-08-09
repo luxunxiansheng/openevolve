@@ -10,12 +10,8 @@ from openevolve.actor.actor import ActionResult
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
-from openevolve.database.config import DatabaseConfig
 from openevolve.database.database import Program, ProgramDatabase
-from openevolve.llm.config import LLMConfig
 from openevolve.llm.llm_ensemble import EnsembleLLM
-from openevolve.orchestration.config import OrchestratorConfig
-from openevolve.prompt.config import PromptConfig
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.utils.metrics_utils import safe_numeric_average
 
@@ -30,30 +26,51 @@ class Orchestrator:
         critic_program_path,
         evoved_program_path,
         output_dir: str,
-        
-        orchestrator_config: OrchestratorConfig = OrchestratorConfig(),
-        db_config: DatabaseConfig = DatabaseConfig(),
-        prompt_config: PromptConfig = PromptConfig(),
-        llm_config: LLMConfig = LLMConfig(),
+        # Orchestrator config fields
+        max_iterations: int = 1000,
+        target_score: float = 1.0,
+        file_extension: str = ".py",
+        language: str = "python",
+        diff_based_evolution: bool = True,
+        iterations_per_island: int = 10,
+        # Database config fields
+        db_num_islands: int = 5,
+        db_other_kwargs: dict = {},
+        # PromptSampler config fields
+        prompt_kwargs: dict = {},
+        # LLM config fields (list of dicts for ensemble)
+        llm_model_cfgs: list = None,
+        llm_weights: list = None,
     ):
-
         self.evolved_program_path = evoved_program_path
         self.output_dir = output_dir
-        self.max_iterations = orchestrator_config.max_iterations
-        self.target_score = orchestrator_config.target_score
-        self.file_extension = orchestrator_config.file_extension
-        self.language = orchestrator_config.language
-        self.diff_based_evolution = orchestrator_config.diff_based_evolution
+        self.max_iterations = max_iterations
+        self.target_score = target_score
+        self.file_extension = file_extension
+        self.language = language
+        self.diff_based_evolution = diff_based_evolution
         self.programs_per_island = max(
             1,
-            orchestrator_config.max_iterations
-            // (db_config.num_islands * orchestrator_config.iterations_per_island),
+            max_iterations // (db_num_islands * iterations_per_island),
         )
 
-        self.database = ray.remote(ProgramDatabase).remote(db_config)
+        # Database
+        db_kwargs = dict(num_islands=db_num_islands, **db_other_kwargs)
+        self.database = ray.remote(ProgramDatabase).remote(**db_kwargs)
 
-        llm_client = EnsembleLLM([llm_config])
-        prompt_sampler = PromptSampler(prompt_config)
+        # LLM ensemble
+        llm_model_cfgs = llm_model_cfgs or [{}]
+        llm_client = EnsembleLLM(
+            [
+                # Each dict in llm_model_cfgs is passed as kwargs
+                type("Dummy", (), cfg)() if isinstance(cfg, dict) else cfg
+                for cfg in llm_model_cfgs
+            ],
+            weights=llm_weights,
+        )
+
+        # PromptSampler
+        prompt_sampler = PromptSampler(**prompt_kwargs)
         llm_critic = LLMCritic(llm_client, prompt_sampler)
         exe_critic = PythonExecutionCritic(critic_program_path=critic_program_path)
 

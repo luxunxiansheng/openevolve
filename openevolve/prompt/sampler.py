@@ -6,7 +6,7 @@ import logging
 import random
 from typing import Any, Dict, List, Optional, Union
 
-from openevolve.prompt.config import PromptConfig
+
 from openevolve.prompt.templates import TemplateManager
 from openevolve.utils.metrics_utils import safe_numeric_average
 
@@ -16,18 +16,48 @@ logger = logging.getLogger(__name__)
 class PromptSampler:
     """Generates prompts for code evolution"""
 
-    def __init__(self, config: PromptConfig):
-        self.config = config
-        self.template_manager = TemplateManager(config.template_dir)
+    def __init__(
+        self,
+        template_dir: str = None,
+        system_message: str = "system_message",
+        evaluator_system_message: str = "evaluator_system_message",
+        num_top_programs: int = 3,
+        num_diverse_programs: int = 2,
+        use_template_stochasticity: bool = True,
+        template_variations: Dict[str, List[str]] = {},
+        use_meta_prompting: bool = False,
+        meta_prompt_weight: float = 0.1,
+        include_artifacts: bool = True,
+        max_artifact_bytes: int = 20 * 1024,
+        artifact_security_filter: bool = True,
+        suggest_simplification_after_chars: int = 500,
+        include_changes_under_chars: int = 100,
+        concise_implementation_max_lines: int = 10,
+        comprehensive_implementation_min_lines: int = 50,
+        code_length_threshold: int = None
+    ):
+        self.template_dir = template_dir
+        self.system_message = system_message
+        self.evaluator_system_message = evaluator_system_message
+        self.num_top_programs = num_top_programs
+        self.num_diverse_programs = num_diverse_programs
+        self.use_template_stochasticity = use_template_stochasticity
+        self.template_variations = template_variations
+        self.use_meta_prompting = use_meta_prompting
+        self.meta_prompt_weight = meta_prompt_weight
+        self.include_artifacts = include_artifacts
+        self.max_artifact_bytes = max_artifact_bytes
+        self.artifact_security_filter = artifact_security_filter
+        self.suggest_simplification_after_chars = suggest_simplification_after_chars
+        self.include_changes_under_chars = include_changes_under_chars
+        self.concise_implementation_max_lines = concise_implementation_max_lines
+        self.comprehensive_implementation_min_lines = comprehensive_implementation_min_lines
+        self.code_length_threshold = code_length_threshold
 
-        # Initialize the random number generator
+        self.template_manager = TemplateManager(template_dir)
         random.seed()
-
-        # Store custom template mappings
         self.system_template_override = None
         self.user_template_override = None
-
-        # Only log once to reduce duplication
         if not hasattr(logger, "_prompt_sampler_logged"):
             logger.info("Initialized prompt sampler")
             logger._prompt_sampler_logged = True
@@ -99,7 +129,7 @@ class PromptSampler:
         if self.system_template_override:
             system_message = self.template_manager.get_template(self.system_template_override)
         else:
-            system_message = self.config.system_message
+            system_message = self.system_message
             # If system_message is a template name rather than content, get the template
             if system_message in self.template_manager.templates:
                 system_message = self.template_manager.get_template(system_message)
@@ -119,11 +149,11 @@ class PromptSampler:
 
         # Format artifacts section if enabled and available
         artifacts_section = ""
-        if self.config.include_artifacts and program_artifacts:
+    if self.include_artifacts and program_artifacts:
             artifacts_section = self._render_artifacts(program_artifacts)
 
         # Apply stochastic template variations if enabled
-        if self.config.use_template_stochasticity:
+    if self.use_template_stochasticity:
             user_template = self._apply_template_variations(user_template)
 
         # Format the final user message
@@ -171,7 +201,7 @@ class PromptSampler:
 
         # Check program length
         # Support both old and new parameter names for backward compatibility
-        threshold = self.config.suggest_simplification_after_chars or self.config.code_length_threshold
+    threshold = self.suggest_simplification_after_chars or self.code_length_threshold
         if threshold and len(current_program) > threshold:
             improvement_areas.append(
                 "Consider simplifying the code to improve readability and maintainability"
@@ -307,7 +337,7 @@ class PromptSampler:
 
         # Format top programs
         top_programs_str = ""
-        selected_top = top_programs[: min(self.config.num_top_programs, len(top_programs))]
+    selected_top = top_programs[: min(self.num_top_programs, len(top_programs))]
 
         for i, program in enumerate(selected_top):
             # Use the full program code
@@ -345,14 +375,14 @@ class PromptSampler:
         # Format diverse programs using num_diverse_programs config
         diverse_programs_str = ""
         if (
-            self.config.num_diverse_programs > 0
-            and len(top_programs) > self.config.num_top_programs
+            self.num_diverse_programs > 0
+            and len(top_programs) > self.num_top_programs
         ):
             # Skip the top programs we already included
-            remaining_programs = top_programs[self.config.num_top_programs :]
+            remaining_programs = top_programs[self.num_top_programs :]
 
             # Sample diverse programs from the remaining
-            num_diverse = min(self.config.num_diverse_programs, len(remaining_programs))
+            num_diverse = min(self.num_diverse_programs, len(remaining_programs))
             if num_diverse > 0:
                 # Use random sampling to get diverse programs
                 diverse_programs = random.sample(remaining_programs, num_diverse)
@@ -500,7 +530,7 @@ class PromptSampler:
         metadata = program.get("metadata", {})
         if "changes" in metadata:
             changes = metadata["changes"]
-            if isinstance(changes, str) and self.config.include_changes_under_chars and len(changes) < self.config.include_changes_under_chars:
+            if isinstance(changes, str) and self.include_changes_under_chars and len(changes) < self.include_changes_under_chars:
                 features.append(f"Modification: {changes}")
 
         # Analyze metrics for standout characteristics
@@ -522,9 +552,9 @@ class PromptSampler:
                 features.append("NumPy-based implementation")
             if "for" in code_lower and "while" in code_lower:
                 features.append("Mixed iteration strategies")
-            if self.config.concise_implementation_max_lines and len(code.split("\n")) <= self.config.concise_implementation_max_lines:
+            if self.concise_implementation_max_lines and len(code.split("\n")) <= self.concise_implementation_max_lines:
                 features.append("Concise implementation")
-            elif self.config.comprehensive_implementation_min_lines and len(code.split("\n")) >= self.config.comprehensive_implementation_min_lines:
+            elif self.comprehensive_implementation_min_lines and len(code.split("\n")) >= self.comprehensive_implementation_min_lines:
                 features.append("Comprehensive implementation")
 
         # Default if no specific features found
@@ -533,7 +563,7 @@ class PromptSampler:
             features.append(f"{program_type} approach to the problem")
 
         # Use num_top_programs as limit for features (similar to how we limit programs)
-        feature_limit = self.config.num_top_programs
+    feature_limit = self.num_top_programs
         return ", ".join(features[:feature_limit])
 
     def _apply_template_variations(self, template: str) -> str:
@@ -541,7 +571,7 @@ class PromptSampler:
         result = template
 
         # Apply variations defined in the config
-        for key, variations in self.config.template_variations.items():
+    for key, variations in self.template_variations.items():
             if variations and f"{{{key}}}" in result:
                 chosen_variation = random.choice(variations)
                 result = result.replace(f"{{{key}}}", chosen_variation)
@@ -567,8 +597,8 @@ class PromptSampler:
         for key, value in artifacts.items():
             content = self._safe_decode_artifact(value)
             # Truncate if too long
-            if len(content) > self.config.max_artifact_bytes:
-                content = content[: self.config.max_artifact_bytes] + "\n... (truncated)"
+            if len(content) > self.max_artifact_bytes:
+                content = content[: self.max_artifact_bytes] + "\n... (truncated)"
 
             sections.append(f"### {key}\n```\n{content}\n```")
 
@@ -589,13 +619,13 @@ class PromptSampler:
         """
         if isinstance(value, str):
             # Apply security filter if enabled
-            if self.config.artifact_security_filter:
+            if self.artifact_security_filter:
                 return self._apply_security_filter(value)
             return value
         elif isinstance(value, bytes):
             try:
                 decoded = value.decode("utf-8", errors="replace")
-                if self.config.artifact_security_filter:
+                if self.artifact_security_filter:
                     return self._apply_security_filter(decoded)
                 return decoded
             except Exception:

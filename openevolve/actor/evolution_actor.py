@@ -44,8 +44,12 @@ class EvolutionActor(Actor):
         self.use_llm_critic = config.use_llm_critic
         self.llm_feedback_weight = config.llm_feedback_weight
         self.artifacts_enabled = config.artifacts_enabled
-        self.island_top_programs_limit = config.island_top_programs_limit  # Limit for top programs per island
-        self.island_previous_programs_limit = config.island_previous_programs_limit  # Limit for previous programs per island
+        self.island_top_programs_limit = (
+            config.island_top_programs_limit
+        )  # Limit for top programs per island
+        self.island_previous_programs_limit = (
+            config.island_previous_programs_limit
+        )  # Limit for previous programs per island
 
     def _enclose_code_block(self, code: str) -> str:
         """
@@ -75,9 +79,13 @@ class EvolutionActor(Actor):
 
             parent_island = parent.metadata.get("island", current_island)
 
-            island_top_programs = ray.get(self.database.get_top_programs.remote(self.island_top_programs_limit, parent_island))
+            island_top_programs = ray.get(
+                self.database.get_top_programs.remote(self.island_top_programs_limit, parent_island)
+            )
             island_previous_programs = ray.get(
-                self.database.get_top_programs.remote(self.island_previous_programs_limit, parent_island)
+                self.database.get_top_programs.remote(
+                    self.island_previous_programs_limit, parent_island
+                )
             )
 
             # Build prompt
@@ -112,9 +120,7 @@ class EvolutionActor(Actor):
                 diff_blocks = extract_diffs(llm_response)
 
                 if not diff_blocks:
-                    logger.warning(
-                        f"Iteration {iteration+1}: No valid diffs found in response"
-                    )
+                    logger.warning(f"Iteration {iteration+1}: No valid diffs found in response")
                     return None
 
                 # Apply the diffs
@@ -128,7 +134,7 @@ class EvolutionActor(Actor):
                     logger.warning(f"Iteration {iteration}: No valid code found in response")
                     return None
 
-                # add # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END comments to enclose the code block if # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END not present in the new code 
+                # add # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END comments to enclose the code block if # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END not present in the new code
                 new_code = self._enclose_code_block(new_code)
 
                 evovled_child_code = new_code

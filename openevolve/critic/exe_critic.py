@@ -15,23 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class PythonExecutionCritic(Critic):
-    """Controller for evaluating Python programs using Ray Job Submission Client.
-    This class handles the submission of evaluation jobs to a Ray cluster and monitors their status.
-    It also extracts evaluation results from the job logs.
-    """
-
     def __init__(
         self,
-        critic_program_path:str,
+        critic_program_path: str,
         config: CriticConfig = CriticConfig(),
-    ) -> None:        
+    ) -> None:
         self.critic_program_path = critic_program_path
         self.job_client = JobSubmissionClient(config.default_ray_head_ip)
         self.job_timeout_seconds = config.job_timeout_seconds
         self.status_check_interval = config.status_check_interval
         self.job_stop_wait_time = config.job_stop_wait_time
         self.delteion_wait_time = config.deletion_wait_time
-        
+
         self.critic_program = None
 
     async def evaluate(self, **kwargs) -> EvaluationResult:

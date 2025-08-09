@@ -26,14 +26,16 @@ class EvolutionActor(Actor):
     def __init__(
         self,
         database: ActorHandle,  # Explicit Ray actor handle
-        prompt_sampler: PromptSampler,
+        generate_prompt_sampler: PromptSampler,
+        critic_prompt_sampler: PromptSampler,
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
         config: EvolutionActorConfig = EvolutionActorConfig(),
     ) -> None:
         self.database = database
-        self.prompt_sampler = prompt_sampler
+        self.generate_prompt_sampler = generate_prompt_sampler
+        self.critic_prompt_sampler = critic_prompt_sampler
         self.llm_actor_client = llm_actor_client
         self.llm_critic = llm_critic
         self.exe_critic = exe_critic
@@ -80,13 +82,13 @@ class EvolutionActor(Actor):
                     self.top_programs_limit + self.island_diverse_programs_limit, parent_island
                 )
             )
-            
+
             island_previous_programs = ray.get(
                 self.database.get_top_programs.remote(self.top_programs_limit, parent_island)
             )
 
             # Build prompt
-            prompt = self.prompt_sampler.build_prompt(
+            prompt = self.generate_prompt_sampler.build_prompt(
                 current_program=parent.code,
                 parent_program=parent.code,
                 program_metrics=parent.metrics,
@@ -131,7 +133,7 @@ class EvolutionActor(Actor):
                     logger.warning(f"Iteration {iteration}: No valid code found in response")
                     return None
 
-                # add # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END comments to enclose the code 
+                # add # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END comments to enclose the code
                 # block if # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END not present in the new code
                 new_code = self._enclose_code_block(new_code)
 

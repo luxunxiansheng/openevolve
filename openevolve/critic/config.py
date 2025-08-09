@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from openevolve.critic import critic
 
 
 @dataclass

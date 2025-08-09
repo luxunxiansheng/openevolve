@@ -22,6 +22,7 @@ from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)
 
+
 class Orchestrator:
 
     def __init__(
@@ -42,7 +43,11 @@ class Orchestrator:
         self.file_extension = orchestrator_config.file_extension
         self.language = orchestrator_config.language
         self.diff_based_evolution = orchestrator_config.diff_based_evolution
-        self.programs_per_island = max(1,orchestrator_config.max_iterations//(db_config.num_islands*orchestrator_config.iterations_per_island))
+        self.programs_per_island = max(
+            1,
+            orchestrator_config.max_iterations
+            // (db_config.num_islands * orchestrator_config.iterations_per_island),
+        )
 
         self.database = ray.remote(ProgramDatabase).remote(db_config)
 
@@ -53,7 +58,7 @@ class Orchestrator:
 
         self.evolution_actor = EvolutionActor(
             database=self.database,
-            prompt_sampler=prompt_sampler,
+            generate_prompt_sampler=prompt_sampler,
             llm_actor_client=llm_client,
             llm_critic=llm_critic,
             exe_critic=exe_critic,
@@ -94,7 +99,9 @@ class Orchestrator:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             try:
                 logger.info(ray.get(self.database.log_island_status.remote()))
-                result: ActionResult = await self.evolution_actor.act(iteration=current_iteration)  # This returns a Result object
+                result: ActionResult = await self.evolution_actor.act(
+                    iteration=current_iteration
+                )  # This returns a Result object
                 if result.error:
                     logger.warning(f"Iteration {current_iteration} error: {result.error}")
                 elif result.child_program_dict:
@@ -106,7 +113,9 @@ class Orchestrator:
 
                     # Store artifacts
                     if result.artifacts:
-                        ray.get(self.database.store_artifacts.remote(child_program.id, result.artifacts))
+                        ray.get(
+                            self.database.store_artifacts.remote(child_program.id, result.artifacts)
+                        )
 
                     # Log prompts
                     if result.prompt:
@@ -150,7 +159,7 @@ class Orchestrator:
                         f"(parent: {result.parent_id}) "
                         f"completed in {result.iteration_time:.2f}s"
                     )
-                    
+
                     avg_score = 0.0
                     if child_program.metrics:
                         metrics_str = ", ".join(
@@ -169,7 +178,7 @@ class Orchestrator:
                             "combined_score" not in child_program.metrics
                             and not self._warned_about_combined_score
                         ):
-                        
+
                             avg_score = safe_numeric_average(child_program.metrics)
                             logger.warning(
                                 f"⚠️  No 'combined_score' metric found in evaluation results. "

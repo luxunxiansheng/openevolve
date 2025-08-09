@@ -26,15 +26,14 @@ class TestEvolutionActor(unittest.TestCase):
         self.exe_critic = PythonExecutionCritic()
         self.actor = EvolutionActor(
             database=self.database,
-            prompt_sampler=self.prompt_sampler,
+            generate_prompt_sampler=self.prompt_sampler,
             llm_actor_client=self.llm_actor_client,
             llm_critic=self.llm_critic,
             exe_critic=self.exe_critic,
-
         )
-        
+
         python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
-        
+
         with open(python_file_path, "r") as file:
             python_code = file.read()
 
@@ -49,14 +48,13 @@ class TestEvolutionActor(unittest.TestCase):
             metadata={},
         )
         self.database.add.remote(parent_program)
-   
 
     def test_evolution_actor_act_returns_result(self):
         async def run_act():
             result = await self.actor.act(iteration=0)
             print("Action Result:", result)
             self.assertIsNotNone(result)
-           
+
         asyncio.run(run_act())
 
 

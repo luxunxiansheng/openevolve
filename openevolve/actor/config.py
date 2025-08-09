@@ -11,4 +11,6 @@ class EvolutionActorConfig:
     llm_feedback_weight: float = 0.1
     artifacts_enabled: bool = True
     island_top_programs_limit: int = 3
-    island_previous_programs_limit: int = 2
+    island_diverse_programs_limit: int = 3
+    
+    

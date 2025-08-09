@@ -1770,10 +1770,11 @@ class ProgramDatabase:
         scaled = (value - min_val) / (max_val - min_val)
         return min(1.0, max(0.0, scaled))
 
-    def log_island_status(self) -> None:
+    def log_island_status(self) -> str:
         """Log current status of all islands"""
         stats = self.get_island_stats()
         logger.info("Island Status:")
+        status_lines = []
         for stat in stats:
             current_marker = " *" if stat["is_current"] else "  "
             island_idx = stat["island"]
@@ -1783,11 +1784,14 @@ class ProgramDatabase:
                 else None
             )
             best_indicator = f" (best: {island_best_id})" if island_best_id else ""
-            logger.info(
-                f"{current_marker} Island {stat['island']}: {stat['population_size']} programs, "
-                f"best={stat['best_score']:.4f}, avg={stat['average_score']:.4f}, "
-                f"diversity={stat['diversity']:.2f}, gen={stat['generation']}{best_indicator}"
-            )
+            stats_info = (f"{current_marker} Island {stat['island']}: {stat['population_size']} programs, "
+                         f"best={stat['best_score']:.4f}, avg={stat['average_score']:.4f}, "
+                         f"diversity={stat['diversity']:.2f}, gen={stat['generation']}{best_indicator}")
+    
+            logger.info(stats_info)
+            status_lines.append(stats_info)
+
+        return "\n".join(status_lines)
 
     # Artifact storage and retrieval methods
 

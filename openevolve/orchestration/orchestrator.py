@@ -5,48 +5,36 @@ from typing import Optional
 import uuid
 
 import ray
-from openevolve.actor.evolution_actor import EvolutionActor
+
 from openevolve.actor.actor import ActionResult
-from openevolve.database.config import DatabaseConfig
-from openevolve.database.database import Program
-from openevolve.orchestration.config import OrchestratorConfig
 from openevolve.actor.evolution_actor import EvolutionActor
-
 from openevolve.critic.exe_critic import PythonExecutionCritic
-
 from openevolve.critic.llm_critic import LLMCritic
-
-from openevolve.llm.llm_ensemble import EnsembleLLM
-
-from openevolve.prompt.sampler import PromptSampler
-
-from openevolve.database.database import Program, ProgramDatabase
-
-from openevolve.llm.config import LLMConfig
-
-from openevolve.prompt.config import PromptConfig
-
-# Import the Orchestrator and its config
 from openevolve.database.config import DatabaseConfig
+from openevolve.database.database import Program, ProgramDatabase
+from openevolve.llm.config import LLMConfig
+from openevolve.llm.llm_ensemble import EnsembleLLM
+from openevolve.orchestration.config import OrchestratorConfig
+from openevolve.prompt.config import PromptConfig
+from openevolve.prompt.sampler import PromptSampler
+from openevolve.utils.metrics_utils import safe_numeric_average
+
 
 logger = logging.getLogger(__name__)
 
-
 class Orchestrator:
 
-
-    def __init__(self,
-            critic_program_path,
-            evoved_program_path,
-            output_dir: str,
-            
-            orchestrator_config: OrchestratorConfig = OrchestratorConfig(),
-            db_config:DatabaseConfig=DatabaseConfig(),
-            prompt_config:PromptConfig=PromptConfig(),
-            llm_config:LLMConfig=LLMConfig(),
-
+    def __init__(
+        self,
+        critic_program_path,
+        evoved_program_path,
+        output_dir: str,
+        orchestrator_config: OrchestratorConfig = OrchestratorConfig(),
+        db_config: DatabaseConfig = DatabaseConfig(),
+        prompt_config: PromptConfig = PromptConfig(),
+        llm_config: LLMConfig = LLMConfig(),
     ):
-        
+
         self.evolved_program_path = evoved_program_path
         self.output_dir = output_dir
         self.max_iterations = orchestrator_config.max_iterations
@@ -54,15 +42,15 @@ class Orchestrator:
         self.file_extension = orchestrator_config.file_extension
         self.language = orchestrator_config.language
         self.diff_based_evolution = orchestrator_config.diff_based_evolution
-        self.programs_per_island = orchestrator_config.programs_per_island
-        
+        self.programs_per_island = max(1,orchestrator_config.max_iterations//(db_config.num_islands*orchestrator_config.iterations_per_island))
+
         self.database = ray.remote(ProgramDatabase).remote(db_config)
-        
-        llm_client = EnsembleLLM([llm_config])        
-        prompt_sampler = PromptSampler(prompt_config)        
-        llm_critic = LLMCritic(llm_client, prompt_sampler)        
+
+        llm_client = EnsembleLLM([llm_config])
+        prompt_sampler = PromptSampler(prompt_config)
+        llm_critic = LLMCritic(llm_client, prompt_sampler)
         exe_critic = PythonExecutionCritic(critic_program_path=critic_program_path)
-        
+
         self.evolution_actor = EvolutionActor(
             database=self.database,
             prompt_sampler=prompt_sampler,
@@ -70,19 +58,17 @@ class Orchestrator:
             llm_critic=llm_critic,
             exe_critic=exe_critic,
         )
-        
 
     async def run(self):
         """Run the orchestration process"""
         logger.info("Starting orchestration process")
 
-       
         with open(self.evolved_program_path, "r") as file:
-            program_to_be_evolved= file.read()
-           
+            program_to_be_evolved = file.read()
+
         if not program_to_be_evolved:
             raise ValueError("No valid program found in the provided file.")
-        
+
         # Create initial program object
         initial_evolved_program = Program(
             id=str(uuid.uuid4()),
@@ -93,7 +79,7 @@ class Orchestrator:
             metrics={},
             iteration_found=0,
             metadata={},
-        )      
+        )
 
         # Add initial program to database if it doesn't exist
         ray.get(self.database.add.remote(initial_evolved_program))
@@ -107,6 +93,7 @@ class Orchestrator:
         while current_iteration < self.max_iterations:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             try:
+                logger.info(ray.get(self.database.log_island_status.remote()))
                 result: ActionResult = await self.evolution_actor.act(iteration=current_iteration)  # This returns a Result object
                 if result.error:
                     logger.warning(f"Iteration {current_iteration} error: {result.error}")
@@ -119,9 +106,7 @@ class Orchestrator:
 
                     # Store artifacts
                     if result.artifacts:
-                        ray.get(
-                            self.database.store_artifacts.remote(child_program.id, result.artifacts)
-                        )
+                        ray.get(self.database.store_artifacts.remote(child_program.id, result.artifacts))
 
                     # Log prompts
                     if result.prompt:
@@ -165,7 +150,8 @@ class Orchestrator:
                         f"(parent: {result.parent_id}) "
                         f"completed in {result.iteration_time:.2f}s"
                     )
-
+                    
+                    avg_score = 0.0
                     if child_program.metrics:
                         metrics_str = ", ".join(
                             [
@@ -183,8 +169,7 @@ class Orchestrator:
                             "combined_score" not in child_program.metrics
                             and not self._warned_about_combined_score
                         ):
-                            from openevolve.utils.metrics_utils import safe_numeric_average
-
+                        
                             avg_score = safe_numeric_average(child_program.metrics)
                             logger.warning(
                                 f"⚠️  No 'combined_score' metric found in evaluation results. "

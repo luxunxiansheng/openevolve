@@ -19,7 +19,7 @@ class PromptSampler:
     def __init__(
         self,
         template_dir: Optional[str] = None,
-        system_template_key: str = "base_system_message",
+        system_template_key: str = Templates.BASE_SYSTEM,
         num_top_programs: int = 3,
         num_diverse_programs: int = 2,
         use_template_stochasticity: bool = True,
@@ -99,7 +99,9 @@ class PromptSampler:
             selected_template_key = user_template_key
         else:
             # Default behavior: diff-based vs full rewrite
-            selected_template_key = "diff_user" if diff_based_evolution else "full_rewrite_user"
+            selected_template_key = (
+                Templates.DIFF_USER if diff_based_evolution else Templates.FULL_REWRITE_USER
+            )
 
         # Get the template
         user_template = self.template_manager.get_template(selected_template_key)
@@ -239,9 +241,9 @@ class PromptSampler:
     ) -> str:
         """Format the evolution history for the prompt"""
         # Get templates
-        history_template = self.template_manager.get_template("evolution_history")
-        previous_attempt_template = self.template_manager.get_template("previous_attempt")
-        top_program_template = self.template_manager.get_template("top_program")
+        history_template = self.template_manager.get_template(Templates.EVOLUTION_HISTORY)
+        previous_attempt_template = self.template_manager.get_template(Templates.PREVIOUS_ATTEMPT)
+        top_program_template = self.template_manager.get_template(Templates.TOP_PROGRAM)
 
         # Format previous attempts (most recent first)
         previous_attempts_str = ""
@@ -417,8 +419,12 @@ class PromptSampler:
             return ""
 
         # Get templates
-        inspirations_section_template = self.template_manager.get_template("inspirations_section")
-        inspiration_program_template = self.template_manager.get_template("inspiration_program")
+        inspirations_section_template = self.template_manager.get_template(
+            Templates.INSPIRATIONS_SECTION
+        )
+        inspiration_program_template = self.template_manager.get_template(
+            Templates.INSPIRATION_PROGRAM
+        )
 
         inspiration_programs_str = ""
 

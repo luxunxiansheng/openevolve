@@ -6,13 +6,14 @@ from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.critic import EvaluationResult
 from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.prompt.sampler import PromptSampler
+from openevolve.prompt.templates import Templates
 from openevolve.llm.llm_ensemble import EnsembleLLM
 
 
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.llm_client = EnsembleLLM([OpenAILLM()])
-        self.prompt_sampler = PromptSampler(system_template_key="critic_system_message")
+        self.prompt_sampler = PromptSampler(system_template_key=Templates.CRITIC_SYSTEM)
 
         self.evaluator = LLMCritic(self.llm_client, self.prompt_sampler)
 
@@ -27,7 +28,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
         try:
 
             result = await self.evaluator.evaluate(
-                evolved_program_code=program_code, user_template_key="evaluation"
+                evolved_program_code=program_code, user_template_key=Templates.EVALUATION
             )
             print(f"Evaluation Result: {result}")
             self.assertIsInstance(result, EvaluationResult)

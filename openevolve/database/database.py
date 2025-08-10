@@ -14,7 +14,6 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 
-
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)
@@ -95,7 +94,6 @@ class ProgramDatabase:
     It also tracks the absolute best program separately to ensure it's never lost.
     """
 
-
     def __init__(
         self,
         db_path: Optional[str] = None,
@@ -118,7 +116,7 @@ class ProgramDatabase:
         artifact_size_threshold: int = 32 * 1024,
         cleanup_old_artifacts: bool = True,
         artifact_retention_days: int = 30,
-        num_inspirations: int = 5
+        num_inspirations: int = 5,
     ):
         # Assign all config fields as attributes
         self.db_path = db_path
@@ -210,9 +208,7 @@ class ProgramDatabase:
             self.feature_bins_per_dim = self.feature_bins
         else:
             # Backward compatibility - use same bins for all dimensions
-            self.feature_bins_per_dim = {
-                dim: self.feature_bins for dim in self.feature_dimensions
-            }
+            self.feature_bins_per_dim = {dim: self.feature_bins for dim in self.feature_dimensions}
 
         logger.info(f"Initialized program database with {len(self.programs)} programs")
 
@@ -280,8 +276,7 @@ class ProgramDatabase:
         if should_replace:
             # Log significant MAP-Elites events
             coords_dict = {
-                self.feature_dimensions[i]: feature_coords[i]
-                for i in range(len(feature_coords))
+                self.feature_dimensions[i]: feature_coords[i] for i in range(len(feature_coords))
             }
 
             if feature_key not in self.feature_map:
@@ -767,7 +762,9 @@ class ProgramDatabase:
                     # Update stats and scale
                     self._update_feature_stats("score", avg_score)
                     scaled_value = self._scale_feature_value("score", avg_score)
-                    num_bins = self.feature_bins_per_dim.get("score", self.feature_bins if isinstance(self.feature_bins, int) else 10)
+                    num_bins = self.feature_bins_per_dim.get(
+                        "score", self.feature_bins if isinstance(self.feature_bins, int) else 10
+                    )
                     bin_idx = int(scaled_value * num_bins)
                     bin_idx = max(0, min(num_bins - 1, bin_idx))
                 coords.append(bin_idx)
@@ -777,7 +774,9 @@ class ProgramDatabase:
                 # Update stats and scale
                 self._update_feature_stats(dim, score)
                 scaled_value = self._scale_feature_value(dim, score)
-                num_bins = self.feature_bins_per_dim.get(dim, self.feature_bins if isinstance(self.feature_bins, int) else 10)
+                num_bins = self.feature_bins_per_dim.get(
+                    dim, self.feature_bins if isinstance(self.feature_bins, int) else 10
+                )
                 bin_idx = int(scaled_value * num_bins)
                 bin_idx = max(0, min(num_bins - 1, bin_idx))
                 coords.append(bin_idx)
@@ -812,7 +811,9 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("complexity", float(complexity))
 
         # Get number of bins for this dimension
-        num_bins = self.feature_bins_per_dim.get("complexity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
+        num_bins = self.feature_bins_per_dim.get(
+            "complexity", self.feature_bins if isinstance(self.feature_bins, int) else 10
+        )
 
         # Convert to bin index
         bin_idx = int(scaled_value * num_bins)
@@ -838,7 +839,9 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("diversity", diversity)
 
         # Get number of bins for this dimension
-        num_bins = self.feature_bins_per_dim.get("diversity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
+        num_bins = self.feature_bins_per_dim.get(
+            "diversity", self.feature_bins if isinstance(self.feature_bins, int) else 10
+        )
 
         # Convert to bin index
         bin_idx = int(scaled_value * num_bins)
@@ -898,7 +901,7 @@ class ProgramDatabase:
             program: Program to consider for archive
         """
         # If archive not full, add program
-        if len(self.archive) < self.config.archive_size:
+        if len(self.archive) < self.archive_size:
             self.archive.add(program.id)
             return
 
@@ -918,7 +921,7 @@ class ProgramDatabase:
             logger.debug(f"Removing stale program {stale_id} from archive")
 
         # If archive is now not full after cleanup, just add the new program
-        if len(self.archive) < self.config.archive_size:
+        if len(self.archive) < self.archive_size:
             self.archive.add(program.id)
             return
 
@@ -1038,10 +1041,10 @@ class ProgramDatabase:
         # Use exploration_ratio and exploitation_ratio to decide sampling strategy
         rand_val = random.random()
 
-        if rand_val < self.config.exploration_ratio:
+        if rand_val < self.exploration_ratio:
             # EXPLORATION: Sample from current island (diverse sampling)
             return self._sample_exploration_parent()
-        elif rand_val < self.config.exploration_ratio + self.config.exploitation_ratio:
+        elif rand_val < self.exploration_ratio + self.exploitation_ratio:
             # EXPLOITATION: Sample from archive (elite programs)
             return self._sample_exploitation_parent()
         else:
@@ -1194,7 +1197,7 @@ class ProgramDatabase:
             self.island_best_programs[parent_island] = None
 
         # Add top programs from the island as inspirations
-        top_n = max(1, int(n * self.config.elite_selection_ratio))
+        top_n = max(1, int(n * self.elite_selection_ratio))
         top_island_programs = self.get_top_programs(n=top_n, island_idx=parent_island)
         for program in top_island_programs:
             if program.id not in [p.id for p in inspirations] and program.id != parent.id:
@@ -1278,14 +1281,14 @@ class ProgramDatabase:
         Args:
             exclude_program_id: Program ID to never remove (e.g., newly added program)
         """
-        if len(self.programs) <= self.config.population_size:
+        if len(self.programs) <= self.population_size:
             return
 
         # Calculate how many programs to remove
-        num_to_remove = len(self.programs) - self.config.population_size
+        num_to_remove = len(self.programs) - self.population_size
 
         logger.info(
-            f"Population size ({len(self.programs)}) exceeds limit ({self.config.population_size}), removing {num_to_remove} programs"
+            f"Population size ({len(self.programs)}) exceeds limit ({self.population_size}), removing {num_to_remove} programs"
         )
 
         # Get programs sorted by fitness (worst first)
@@ -1428,7 +1431,7 @@ class ProgramDatabase:
                     # Log migration with MAP-Elites coordinates
                     feature_coords = self._calculate_feature_coords(migrant_copy)
                     coords_dict = {
-                        self.config.feature_dimensions[j]: feature_coords[j]
+                        self.feature_dimensions[j]: feature_coords[j]
                         for j in range(len(feature_coords))
                     }
                     logger.info(
@@ -1827,10 +1830,12 @@ class ProgramDatabase:
                 else None
             )
             best_indicator = f" (best: {island_best_id})" if island_best_id else ""
-            stats_info = (f"{current_marker} Island {stat['island']}: {stat['population_size']} programs, "
-                         f"best={stat['best_score']:.4f}, avg={stat['average_score']:.4f}, "
-                         f"diversity={stat['diversity']:.2f}, gen={stat['generation']}{best_indicator}")
-    
+            stats_info = (
+                f"{current_marker} Island {stat['island']}: {stat['population_size']} programs, "
+                f"best={stat['best_score']:.4f}, avg={stat['average_score']:.4f}, "
+                f"diversity={stat['diversity']:.2f}, gen={stat['generation']}{best_indicator}"
+            )
+
             logger.info(stats_info)
             status_lines.append(stats_info)
 
@@ -1863,7 +1868,7 @@ class ProgramDatabase:
         # Split artifacts by size
         small_artifacts = {}
         large_artifacts = {}
-        size_threshold = getattr(self.config, "artifact_size_threshold", 32 * 1024)  # 32KB default
+        size_threshold = self.artifact_size_threshold  # Use direct attribute
 
         for key, value in artifacts.items():
             size = self._get_artifact_size(value)
@@ -1939,12 +1944,10 @@ class ProgramDatabase:
 
     def _create_artifact_dir(self, program_id: str) -> str:
         """Create artifact directory for a program"""
-        base_path = getattr(self.config, "artifacts_base_path", None)
+        base_path = self.artifacts_base_path
         if not base_path:
             base_path = (
-                os.path.join(self.config.db_path or ".", "artifacts")
-                if self.config.db_path
-                else "./artifacts"
+                os.path.join(self.db_path or ".", "artifacts") if self.db_path else "./artifacts"
             )
 
         artifact_dir = os.path.join(base_path, program_id)
@@ -2008,7 +2011,7 @@ class ProgramDatabase:
     ) -> None:
         """
         Log a prompt for a program.
-        Only logs if self.config.log_prompts is True.
+        Only logs if self.log_prompts is True.
 
         Args:
         program_id: ID of the program to log the prompt for
@@ -2017,7 +2020,7 @@ class ProgramDatabase:
         responses: Optional list of responses to the prompt, if available.
         """
 
-        if not self.config.log_prompts:
+        if not self.log_prompts:
             return
 
         if responses is None:

@@ -13,7 +13,6 @@ from openevolve.critic.llm_critic import LLMCritic
 from openevolve.database.database import Program, ProgramDatabase
 from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.prompt.sampler import PromptSampler
-from openevolve.prompt.templates import TemplateKey
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 
@@ -141,9 +140,9 @@ class Orchestrator:
                         ray.get(
                             self.database.log_prompt.remote(
                                 template_key=(
-                                    TemplateKey.FULL_REWRITE_USER.value
+                                    "full_rewrite_user"
                                     if not self.diff_based_evolution
-                                    else TemplateKey.DIFF_USER.value
+                                    else "diff_user"
                                 ),
                                 program_id=child_program.id,
                                 prompt=result.prompt,

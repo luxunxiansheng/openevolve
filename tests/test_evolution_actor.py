@@ -6,7 +6,6 @@ import ray
 from openevolve.actor.evolution_actor import EvolutionActor
 from openevolve.database.database import ProgramDatabase, Program
 from openevolve.prompt.sampler import PromptSampler
-from openevolve.prompt.templates import TemplateKey
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.llm.llm_ensemble import EnsembleLLM
@@ -26,10 +25,10 @@ class TestEvolutionActor(unittest.TestCase):
         self.database = ray.remote(ProgramDatabase).remote()
 
         # Initialize the LLM client for the actor
-        actor_prompt_sampler = PromptSampler(system_template_key=TemplateKey.ACTOR_SYSTEM_MESSAGE)
+        actor_prompt_sampler = PromptSampler(system_template_key="actor_system_message")
         llm_actor_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
 
-        critic_prompt_sampler = PromptSampler(system_template_key=TemplateKey.CRITIC_SYSTEM_MESSAGE)
+        critic_prompt_sampler = PromptSampler(system_template_key="critic_system_message")
         llm_critic_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
         llm_critic = LLMCritic(llm_critic_client, critic_prompt_sampler)
 

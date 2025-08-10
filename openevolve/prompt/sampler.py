@@ -7,7 +7,7 @@ import random
 from typing import Any, Dict, List, Optional, Union
 
 
-from openevolve.prompt.templates import TemplateManager, TemplateKey
+from openevolve.prompt.templates import TemplateManager, Templates
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class PromptSampler:
     def __init__(
         self,
         template_dir: Optional[str] = None,
-        system_template_key: TemplateKey = TemplateKey.BASE_SYSTEM_MESSAGE,
+        system_template_key: str = "base_system_message",
         num_top_programs: int = 3,
         num_diverse_programs: int = 2,
         use_template_stochasticity: bool = True,
@@ -69,7 +69,7 @@ class PromptSampler:
         inspirations: List[Dict[str, Any]] = [],  # Add inspirations parameter
         language: str = "python",
         diff_based_evolution: bool = True,
-        user_template_key: Optional[TemplateKey] = None,
+        user_template_key: Optional[str] = None,
         program_artifacts: Optional[Dict[str, Union[str, bytes]]] = None,
         **kwargs: Any,
     ) -> Dict[str, str]:
@@ -99,9 +99,7 @@ class PromptSampler:
             selected_template_key = user_template_key
         else:
             # Default behavior: diff-based vs full rewrite
-            selected_template_key = (
-                TemplateKey.DIFF_USER if diff_based_evolution else TemplateKey.FULL_REWRITE_USER
-            )
+            selected_template_key = "diff_user" if diff_based_evolution else "full_rewrite_user"
 
         # Get the template
         user_template = self.template_manager.get_template(selected_template_key)
@@ -241,9 +239,9 @@ class PromptSampler:
     ) -> str:
         """Format the evolution history for the prompt"""
         # Get templates
-        history_template = self.template_manager.get_template(TemplateKey.EVOLUTION_HISTORY)
-        previous_attempt_template = self.template_manager.get_template(TemplateKey.PREVIOUS_ATTEMPT)
-        top_program_template = self.template_manager.get_template(TemplateKey.TOP_PROGRAM)
+        history_template = self.template_manager.get_template("evolution_history")
+        previous_attempt_template = self.template_manager.get_template("previous_attempt")
+        top_program_template = self.template_manager.get_template("top_program")
 
         # Format previous attempts (most recent first)
         previous_attempts_str = ""
@@ -419,12 +417,8 @@ class PromptSampler:
             return ""
 
         # Get templates
-        inspirations_section_template = self.template_manager.get_template(
-            TemplateKey.INSPIRATIONS_SECTION
-        )
-        inspiration_program_template = self.template_manager.get_template(
-            TemplateKey.INSPIRATION_PROGRAM
-        )
+        inspirations_section_template = self.template_manager.get_template("inspirations_section")
+        inspiration_program_template = self.template_manager.get_template("inspiration_program")
 
         inspiration_programs_str = ""
 

@@ -6,14 +6,13 @@ from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.critic import EvaluationResult
 from openevolve.llm.llm_openai import OpenAILLM
 from openevolve.prompt.sampler import PromptSampler
-from openevolve.prompt.templates import TemplateKey
 from openevolve.llm.llm_ensemble import EnsembleLLM
 
 
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.llm_client = EnsembleLLM([OpenAILLM()])
-        self.prompt_sampler = PromptSampler(system_template_key=TemplateKey.CRITIC_SYSTEM_MESSAGE)
+        self.prompt_sampler = PromptSampler(system_template_key="critic_system_message")
 
         self.evaluator = LLMCritic(self.llm_client, self.prompt_sampler)
 
@@ -27,9 +26,9 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
         # This will actually call the LLM, so the test may require a running LLM API or will fail gracefully
         try:
 
-         
-            result = await self.evaluator.evaluate(evolved_program_code=program_code,
-                                                   user_template_key=TemplateKey.EVALUATION_TEMPLATE)
+            result = await self.evaluator.evaluate(
+                evolved_program_code=program_code, user_template_key="evaluation"
+            )
             print(f"Evaluation Result: {result}")
             self.assertIsInstance(result, EvaluationResult)
             # The following checks are best-effort, as real LLM output may vary

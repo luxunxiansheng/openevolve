@@ -8,7 +8,6 @@ import uuid
 from openevolve.critic.critic import Critic, EvaluationResult
 from openevolve.llm.llm_interface import LLMInterface
 from ..prompt.sampler import PromptSampler
-from ..prompt.templates import TemplateKey
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class LLMCritic(Critic):
         if not evolved_program_code:
             raise ValueError("program_code must be provided for evaluation.")
 
-        user_template_key = kwargs.get("user_template_key", TemplateKey.CRITIC_SYSTEM_MESSAGE)
+        user_template_key = kwargs.get("user_template_key", "critic_system_message")
 
         try:
             # Create prompt for LLM

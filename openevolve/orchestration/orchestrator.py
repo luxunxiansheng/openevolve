@@ -76,7 +76,7 @@ class Orchestrator:
 
         self.evolution_actor = EvolutionActor(
             database=self.database,
-            prompt_sampler=prompt_sampler,
+            actor_prompt_sampler=prompt_sampler,
             llm_actor_client=llm_client,
             llm_critic=llm_critic,
             exe_critic=exe_critic,

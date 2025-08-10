@@ -12,25 +12,40 @@ from openevolve.llm.llm_ensemble import EnsembleLLM
 from openevolve.llm.llm_openai import OpenAILLM
 
 
+# Initialize the execution critic
+critic_file_path = (
+            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+        )
+
+evovle_program_path = (
+            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"
+        )
+
+
 class TestEvolutionActor(unittest.TestCase):
     def setUp(self):
         self.database = ray.remote(ProgramDatabase).remote()
-        self.prompt_sampler = PromptSampler()
-        self.llm_actor_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
-        self.llm_critic = LLMCritic(self.llm_actor_client, self.prompt_sampler)
-        python_file_path = (
-            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
-        )
-        self.exe_critic = PythonExecutionCritic(critic_program_path=python_file_path)
+
+        # Initialize the LLM client for the actor
+        actor_prompt_sampler = PromptSampler(system_template_key="actor_system_message")
+        llm_actor_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
+
+        critic_prompt_sampler = PromptSampler(system_template_key="evaluator_system_message")
+        llm_critic_client = EnsembleLLM([OpenAILLM(name="Qwen3-14B-AWQ")])
+        llm_critic = LLMCritic(llm_critic_client, critic_prompt_sampler)
+       
+        exe_critic = PythonExecutionCritic(critic_program_path=critic_file_path)
+
+        # Initialize the EvolutionActor with the database and critics
         self.actor = EvolutionActor(
             database=self.database,
-            prompt_sampler=self.prompt_sampler,
-            llm_actor_client=self.llm_actor_client,
-            llm_critic=self.llm_critic,
-            exe_critic=self.exe_critic,
+            actor_prompt_sampler=actor_prompt_sampler,
+            llm_actor_client=llm_actor_client,
+            llm_critic=llm_critic,
+            exe_critic=exe_critic,
         )
 
-        with open(python_file_path, "r") as file:
+        with open(evovle_program_path, "r") as file:
             python_code = file.read()
 
         parent_program = Program(

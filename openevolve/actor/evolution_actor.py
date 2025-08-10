@@ -25,7 +25,7 @@ class EvolutionActor(Actor):
     def __init__(
         self,
         database: ActorHandle,  # Explicit Ray actor handle
-        prompt_sampler: PromptSampler,
+        actor_prompt_sampler: PromptSampler,
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
@@ -40,7 +40,7 @@ class EvolutionActor(Actor):
     ) -> None:
         self.database = database
 
-        self.prompt_sampler = prompt_sampler
+        self.actor_prompt_sampler = actor_prompt_sampler
         self.llm_actor_client = llm_actor_client
 
         self.llm_critic = llm_critic
@@ -95,7 +95,7 @@ class EvolutionActor(Actor):
             )
 
             # Build prompt
-            prompt = self.prompt_sampler.build_prompt(
+            prompt = self.actor_prompt_sampler.build_prompt(
                 current_program=parent.code,
                 parent_program=parent.code,
                 program_metrics=parent.metrics,

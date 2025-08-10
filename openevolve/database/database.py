@@ -375,9 +375,9 @@ class ProgramDatabase:
         parent = self._sample_parent()
 
         # Select inspirations
-    inspirations = self._sample_inspirations(parent, n=self.num_inspirations)
-    logger.debug(f"Sampled parent {parent.id} and {len(inspirations)} inspirations")
-    return parent, inspirations
+        inspirations = self._sample_inspirations(parent, n=self.num_inspirations)
+        logger.debug(f"Sampled parent {parent.id} and {len(inspirations)} inspirations")
+        return parent, inspirations
 
     def get_best_program(self, metric: Optional[str] = None) -> Optional[Program]:
         """
@@ -620,7 +620,7 @@ class ProgramDatabase:
             saved_islands: List of island program ID lists from metadata
         """
         # Initialize empty islands
-    num_islands = max(len(saved_islands), self.num_islands)
+        num_islands = max(len(saved_islands), self.num_islands)
         self.islands = [set() for _ in range(num_islands)]
 
         missing_programs = []
@@ -744,7 +744,7 @@ class ProgramDatabase:
         """
         coords = []
 
-    for dim in self.feature_dimensions:
+        for dim in self.feature_dimensions:
             if dim == "complexity":
                 # Use code length as complexity measure
                 complexity = len(program.code)
@@ -812,12 +812,12 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("complexity", float(complexity))
 
         # Get number of bins for this dimension
-    num_bins = self.feature_bins_per_dim.get("complexity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
+        num_bins = self.feature_bins_per_dim.get("complexity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
 
         # Convert to bin index
-    bin_idx = int(scaled_value * num_bins)
-    # Ensure bin index is within valid range
-    bin_idx = max(0, min(num_bins - 1, bin_idx))
+        bin_idx = int(scaled_value * num_bins)
+        # Ensure bin index is within valid range
+        bin_idx = max(0, min(num_bins - 1, bin_idx))
 
         return bin_idx
 
@@ -838,12 +838,12 @@ class ProgramDatabase:
         scaled_value = self._scale_feature_value("diversity", diversity)
 
         # Get number of bins for this dimension
-    num_bins = self.feature_bins_per_dim.get("diversity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
+        num_bins = self.feature_bins_per_dim.get("diversity", self.feature_bins if isinstance(self.feature_bins, int) else 10)
 
         # Convert to bin index
-    bin_idx = int(scaled_value * num_bins)
-    # Ensure bin index is within valid range
-    bin_idx = max(0, min(num_bins - 1, bin_idx))
+        bin_idx = int(scaled_value * num_bins)
+        # Ensure bin index is within valid range
+        bin_idx = max(0, min(num_bins - 1, bin_idx))
 
         return bin_idx
 

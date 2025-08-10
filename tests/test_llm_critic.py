@@ -1,3 +1,4 @@
+import sys
 import unittest
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.critic import EvaluationResult
@@ -9,14 +10,14 @@ from openevolve.llm.llm_ensemble import EnsembleLLM
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.llm_client = EnsembleLLM([OpenAILLM()])
-        self.prompt_sampler = PromptSampler()
-        self.prompt_sampler.set_templates("evaluator_system_message")
+        self.prompt_sampler = PromptSampler(system_template_key="critic_system_message")
+      
         self.evaluator = LLMCritic(self.llm_client, self.prompt_sampler)
 
     async def test_evaluate_returns_evaluation_result(self):
         # Read the hello_world initial program code
         with open(
-            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py", "r"
+            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py", "r"
         ) as f:
             program_code = f.read()
         # This will actually call the LLM, so the test may require a running LLM API or will fail gracefully
@@ -26,7 +27,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
                 current_program=program_code, template_key="evaluation"
             )
             print(f"Prompt sent to LLM:\nSystem: {prompt['system']}\nUser: {prompt['user']}")
-            result = await self.evaluator.evaluate(program_code=program_code, program_id="test_id")
+            result = await self.evaluator.evaluate(evolved_program_code=program_code, program_id="test_id")
             print(f"Evaluation Result: {result}")
             self.assertIsInstance(result, EvaluationResult)
             # The following checks are best-effort, as real LLM output may vary

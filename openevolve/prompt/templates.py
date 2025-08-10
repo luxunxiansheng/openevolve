@@ -4,15 +4,22 @@ Prompt templates for OpenEvolve
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
-# Base system message template for evolution
-BASE_SYSTEM_TEMPLATE = """You are an expert software developer tasked with iteratively improving a codebase.
+# Base system message for evolution
+BASE_SYSTEM_MESSAGE = "You are a helpful assistant designed to assist with code evolution tasks."
+
+# Base system message template for actor
+# This template is used to guide the LLM in generating code modifications
+BASE_ACTOR_SYSTEM_TEMPLATE = """You are an expert software developer tasked with iteratively improving a codebase.
 Your job is to analyze the current program and suggest improvements based on feedback from previous attempts.
 Focus on making targeted changes that will increase the program's performance metrics.
 """
 
-BASE_EVALUATOR_SYSTEM_TEMPLATE = """You are an expert code reviewer.
+
+# Base system message template for crtic 
+# This template is used to guide the LLM in evaluating code quality
+BASE_CRITIC_SYSTEM_TEMPLATE = """You are an expert code reviewer.
 Your job is to analyze the provided code and evaluate it systematically."""
 
 # User message template for diff-based evolution
@@ -155,8 +162,9 @@ Return your evaluation as a JSON object with the following format:
 
 # Default templates dictionary
 DEFAULT_TEMPLATES = {
-    "system_message": BASE_SYSTEM_TEMPLATE,
-    "evaluator_system_message": BASE_EVALUATOR_SYSTEM_TEMPLATE,
+    "base_system_message": BASE_SYSTEM_MESSAGE,
+    "actor_system_message": BASE_ACTOR_SYSTEM_TEMPLATE,
+    "critic_system_message": BASE_CRITIC_SYSTEM_TEMPLATE,
     "diff_user": DIFF_USER_TEMPLATE,
     "full_rewrite_user": FULL_REWRITE_USER_TEMPLATE,
     "evolution_history": EVOLUTION_HISTORY_TEMPLATE,

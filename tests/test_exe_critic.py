@@ -8,7 +8,7 @@ python_evovled_file_path = "/workspaces/openevolve/examples/circle_packing_with_
 class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
 
-        self.orchestrator = PythonExecutionCritic(python_file_path)
+        self.exe_critic = PythonExecutionCritic(python_file_path)
 
     async def test_evaluate_python(self):
         # This is a placeholder for an actual test.
@@ -20,7 +20,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             python_code = file.read()
 
         # Await the coroutine returned by evaluate
-        result = await self.orchestrator.evaluate(
+        result = await self.exe_critic.evaluate(
             evolved_program_code=python_code, runtime_env=runtime_env, program_id="test_program_3"
         )
         print(result)

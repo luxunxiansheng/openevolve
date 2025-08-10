@@ -19,8 +19,7 @@ class PromptSampler:
     def __init__(
         self,
         template_dir: str = None,
-        system_message: str = "system_message",
-        evaluator_system_message: str = "evaluator_system_message",
+        system_template_key: str = "base_system_message",
         num_top_programs: int = 3,
         num_diverse_programs: int = 2,
         use_template_stochasticity: bool = True,
@@ -37,8 +36,7 @@ class PromptSampler:
         code_length_threshold: int = None,
     ):
         self.template_dir = template_dir
-        self.system_message = system_message
-        self.evaluator_system_message = evaluator_system_message
+        self.system_template_key = system_template_key
         self.num_top_programs = num_top_programs
         self.num_diverse_programs = num_diverse_programs
         self.use_template_stochasticity = use_template_stochasticity
@@ -56,25 +54,11 @@ class PromptSampler:
 
         self.template_manager = TemplateManager(template_dir)
         random.seed()
-        self.system_template_override = None
-        self.user_template_override = None
+
         if not hasattr(logger, "_prompt_sampler_logged"):
             logger.info("Initialized prompt sampler")
             logger._prompt_sampler_logged = True
 
-    def set_templates(
-        self, system_template: Optional[str] = None, user_template: Optional[str] = None
-    ) -> None:
-        """
-        Set custom templates to use for this sampler
-
-        Args:
-            system_template: Template name for system message
-            user_template: Template name for user message
-        """
-        self.system_template_override = system_template
-        self.user_template_override = user_template
-        logger.info(f"Set custom templates: system={system_template}, user={user_template}")
 
     def build_prompt(
         self,
@@ -85,7 +69,7 @@ class PromptSampler:
         top_programs: List[Dict[str, Any]] = [],
         inspirations: List[Dict[str, Any]] = [],  # Add inspirations parameter
         language: str = "python",
-        evolution_round: int = 0,
+        
         diff_based_evolution: bool = True,
         template_key: Optional[str] = None,
         program_artifacts: Optional[Dict[str, Union[str, bytes]]] = None,
@@ -115,24 +99,14 @@ class PromptSampler:
         if template_key:
             # Use explicitly provided template key
             user_template_key = template_key
-        elif self.user_template_override:
-            # Use the override set with set_templates
-            user_template_key = self.user_template_override
         else:
             # Default behavior: diff-based vs full rewrite
             user_template_key = "diff_user" if diff_based_evolution else "full_rewrite_user"
 
         # Get the template
         user_template = self.template_manager.get_template(user_template_key)
+        system_message = self.template_manager.get_template(self.system_template_key)
 
-        # Use system template override if set
-        if self.system_template_override:
-            system_message = self.template_manager.get_template(self.system_template_override)
-        else:
-            system_message = self.system_message
-            # If system_message is a template name rather than content, get the template
-            if system_message in self.template_manager.templates:
-                system_message = self.template_manager.get_template(system_message)
 
         # Format metrics
         metrics_str = self._format_metrics(program_metrics)

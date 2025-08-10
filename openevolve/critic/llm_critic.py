@@ -1,10 +1,14 @@
 import json
 import logging
+
 import re
 import traceback
+import uuid
 
 from openevolve.critic.critic import Critic, EvaluationResult
 from openevolve.llm.llm_interface import LLMInterface
+from ..prompt.sampler import PromptSampler
+from ..prompt.templates import TemplateKey
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +22,11 @@ class LLMCritic(Critic):
     It's now regarded as an Agent.
     """
 
-    def __init__(self, llm_client: LLMInterface, prompt_sampler) -> None:
+    def __init__(
+        self,
+        llm_client: LLMInterface,
+        prompt_sampler: PromptSampler,
+    ) -> None:
         """
         Initialize the LLM critic with a client that interacts with the LLM.
 
@@ -42,19 +50,17 @@ class LLMCritic(Critic):
         if not evolved_program_code:
             raise ValueError("program_code must be provided for evaluation.")
 
-        program_id = kwargs.get("program_id", "default_program_id")
-        if not isinstance(program_id, str):
-            raise ValueError("program_id must be a string.")
+        user_template_key = kwargs.get("user_template_key", TemplateKey.CRITIC_SYSTEM_MESSAGE)
 
         try:
             # Create prompt for LLM
             prompt = self.prompt_sampler.build_prompt(
-                current_program=evolved_program_code, template_key="evaluation"
+                current_program=evolved_program_code, user_template_key=user_template_key
             )
 
             # Get LLM response
             responses = await self.llm_client.generate(
-                prompt["user"], system_message=prompt["system"]
+                prompt=prompt["user"], system_message=prompt["system"]
             )
 
             # Extract JSON from response

@@ -3,8 +3,25 @@ Prompt templates for OpenEvolve
 """
 
 import os
+from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
+
+
+class TemplateKey(Enum):
+    """Enum for template keys"""
+    BASE_SYSTEM_MESSAGE = "base_system_message"
+    ACTOR_SYSTEM_MESSAGE = "actor_system_message"
+    CRITIC_SYSTEM_MESSAGE = "critic_system_message"
+    DIFF_USER = "diff_user"
+    FULL_REWRITE_USER = "full_rewrite_user"
+    EVOLUTION_HISTORY = "evolution_history"
+    PREVIOUS_ATTEMPT = "previous_attempt"
+    TOP_PROGRAM = "top_program"
+    INSPIRATIONS_SECTION = "inspirations_section"
+    INSPIRATION_PROGRAM = "inspiration_program"
+    EVALUATION_TEMPLATE = "evaluation_template"
+
 
 # Base system message for evolution
 BASE_SYSTEM_MESSAGE = "You are a helpful assistant designed to assist with code evolution tasks."
@@ -17,7 +34,7 @@ Focus on making targeted changes that will increase the program's performance me
 """
 
 
-# Base system message template for crtic 
+# Base system message template for crtic
 # This template is used to guide the LLM in evaluating code quality
 BASE_CRITIC_SYSTEM_TEMPLATE = """You are an expert code reviewer.
 Your job is to analyze the provided code and evaluate it systematically."""
@@ -162,17 +179,17 @@ Return your evaluation as a JSON object with the following format:
 
 # Default templates dictionary
 DEFAULT_TEMPLATES = {
-    "base_system_message": BASE_SYSTEM_MESSAGE,
-    "actor_system_message": BASE_ACTOR_SYSTEM_TEMPLATE,
-    "critic_system_message": BASE_CRITIC_SYSTEM_TEMPLATE,
-    "diff_user": DIFF_USER_TEMPLATE,
-    "full_rewrite_user": FULL_REWRITE_USER_TEMPLATE,
-    "evolution_history": EVOLUTION_HISTORY_TEMPLATE,
-    "previous_attempt": PREVIOUS_ATTEMPT_TEMPLATE,
-    "top_program": TOP_PROGRAM_TEMPLATE,
-    "inspirations_section": INSPIRATIONS_SECTION_TEMPLATE,
-    "inspiration_program": INSPIRATION_PROGRAM_TEMPLATE,
-    "evaluation": EVALUATION_TEMPLATE,
+    TemplateKey.BASE_SYSTEM_MESSAGE.value: BASE_SYSTEM_MESSAGE,
+    TemplateKey.ACTOR_SYSTEM_MESSAGE.value: BASE_ACTOR_SYSTEM_TEMPLATE,
+    TemplateKey.CRITIC_SYSTEM_MESSAGE.value: BASE_CRITIC_SYSTEM_TEMPLATE,
+    TemplateKey.DIFF_USER.value: DIFF_USER_TEMPLATE,
+    TemplateKey.FULL_REWRITE_USER.value: FULL_REWRITE_USER_TEMPLATE,
+    TemplateKey.EVOLUTION_HISTORY.value: EVOLUTION_HISTORY_TEMPLATE,
+    TemplateKey.PREVIOUS_ATTEMPT.value: PREVIOUS_ATTEMPT_TEMPLATE,
+    TemplateKey.TOP_PROGRAM.value: TOP_PROGRAM_TEMPLATE,
+    TemplateKey.INSPIRATIONS_SECTION.value: INSPIRATIONS_SECTION_TEMPLATE,
+    TemplateKey.INSPIRATION_PROGRAM.value: INSPIRATION_PROGRAM_TEMPLATE,
+    TemplateKey.EVALUATION_TEMPLATE.value: EVALUATION_TEMPLATE,
 }
 
 
@@ -193,12 +210,24 @@ class TemplateManager:
             with open(file_path, "r") as f:
                 self.templates[template_name] = f.read()
 
-    def get_template(self, template_name: str) -> str:
-        """Get a template by name"""
-        if template_name not in self.templates:
-            raise ValueError(f"Template '{template_name}' not found")
-        return self.templates[template_name]
+    def get_template(self, template_key: TemplateKey) -> str:
+        """Get a template by key"""
+        if template_key.value not in self.templates:
+            available_keys = [key.name for key in TemplateKey]
+            raise ValueError(
+                f"Template '{template_key.name}' not found. Available templates: {available_keys}"
+            )
+        return self.templates[template_key.value]
 
-    def add_template(self, template_name: str, template: str) -> None:
+    def add_template(self, template_key: TemplateKey, template: str) -> None:
         """Add or update a template"""
-        self.templates[template_name] = template
+        self.templates[template_key.value] = template
+
+    def list_templates(self) -> List[str]:
+        """List all available template keys"""
+        return list(self.templates.keys())
+
+    @staticmethod
+    def get_all_template_keys() -> List[TemplateKey]:
+        """Get all available template keys as enums"""
+        return list(TemplateKey)

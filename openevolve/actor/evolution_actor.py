@@ -10,6 +10,7 @@ from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.prompt.sampler import PromptSampler
+from openevolve.prompt.templates import TemplateKey
 
 from openevolve.utils.code_utils import (
     apply_diff,
@@ -72,6 +73,7 @@ class EvolutionActor(Actor):
         try:
 
             iteration = kwargs.get("iteration", 0)
+            user_template_key = kwargs.get("user_template_key", TemplateKey.ACTOR_SYSTEM_MESSAGE)
 
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
@@ -104,6 +106,7 @@ class EvolutionActor(Actor):
                 inspirations=[p.to_dict() for p in inspirations],
                 language=self.language,
                 evolution_round=iteration,
+                user_template_key=user_template_key,
                 diff_based_evolution=self.diff_based_evolution,
                 program_artifacts=parent_artifacts if parent_artifacts else None,
             )

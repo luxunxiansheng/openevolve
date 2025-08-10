@@ -34,7 +34,7 @@ class PromptSampler:
         include_changes_under_chars: int = 100,
         concise_implementation_max_lines: int = 10,
         comprehensive_implementation_min_lines: int = 50,
-        code_length_threshold: int = None
+        code_length_threshold: int = None,
     ):
         self.template_dir = template_dir
         self.system_message = system_message
@@ -201,7 +201,7 @@ class PromptSampler:
 
         # Check program length
         # Support both old and new parameter names for backward compatibility
-    threshold = self.suggest_simplification_after_chars or self.code_length_threshold
+        threshold = self.suggest_simplification_after_chars or self.code_length_threshold
         if threshold and len(current_program) > threshold:
             improvement_areas.append(
                 "Consider simplifying the code to improve readability and maintainability"
@@ -337,7 +337,7 @@ class PromptSampler:
 
         # Format top programs
         top_programs_str = ""
-    selected_top = top_programs[: min(self.num_top_programs, len(top_programs))]
+        selected_top = top_programs[: min(self.num_top_programs, len(top_programs))]
 
         for i, program in enumerate(selected_top):
             # Use the full program code
@@ -374,10 +374,7 @@ class PromptSampler:
 
         # Format diverse programs using num_diverse_programs config
         diverse_programs_str = ""
-        if (
-            self.num_diverse_programs > 0
-            and len(top_programs) > self.num_top_programs
-        ):
+        if self.num_diverse_programs > 0 and len(top_programs) > self.num_top_programs:
             # Skip the top programs we already included
             remaining_programs = top_programs[self.num_top_programs :]
 
@@ -530,7 +527,11 @@ class PromptSampler:
         metadata = program.get("metadata", {})
         if "changes" in metadata:
             changes = metadata["changes"]
-            if isinstance(changes, str) and self.include_changes_under_chars and len(changes) < self.include_changes_under_chars:
+            if (
+                isinstance(changes, str)
+                and self.include_changes_under_chars
+                and len(changes) < self.include_changes_under_chars
+            ):
                 features.append(f"Modification: {changes}")
 
         # Analyze metrics for standout characteristics
@@ -552,9 +553,15 @@ class PromptSampler:
                 features.append("NumPy-based implementation")
             if "for" in code_lower and "while" in code_lower:
                 features.append("Mixed iteration strategies")
-            if self.concise_implementation_max_lines and len(code.split("\n")) <= self.concise_implementation_max_lines:
+            if (
+                self.concise_implementation_max_lines
+                and len(code.split("\n")) <= self.concise_implementation_max_lines
+            ):
                 features.append("Concise implementation")
-            elif self.comprehensive_implementation_min_lines and len(code.split("\n")) >= self.comprehensive_implementation_min_lines:
+            elif (
+                self.comprehensive_implementation_min_lines
+                and len(code.split("\n")) >= self.comprehensive_implementation_min_lines
+            ):
                 features.append("Comprehensive implementation")
 
         # Default if no specific features found
@@ -563,7 +570,7 @@ class PromptSampler:
             features.append(f"{program_type} approach to the problem")
 
         # Use num_top_programs as limit for features (similar to how we limit programs)
-    feature_limit = self.num_top_programs
+        feature_limit = self.num_top_programs
         return ", ".join(features[:feature_limit])
 
     def _apply_template_variations(self, template: str) -> str:
@@ -571,7 +578,7 @@ class PromptSampler:
         result = template
 
         # Apply variations defined in the config
-    for key, variations in self.template_variations.items():
+        for key, variations in self.template_variations.items():
             if variations and f"{{{key}}}" in result:
                 chosen_variation = random.choice(variations)
                 result = result.replace(f"{{{key}}}", chosen_variation)

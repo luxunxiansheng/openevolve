@@ -1,12 +1,14 @@
 import asyncio
 import unittest
 from openevolve.llm.llm_openai import OpenAILLM
+from openevolve.llm.llm_ensemble import EnsembleLLM
 
 
 class TestOpenAILLM(unittest.TestCase):
     def setUp(self):
         # Use OpenAILLM with default arguments
         self.llm = OpenAILLM()
+        self.ensemble = EnsembleLLM([OpenAILLM(), OpenAILLM()])
 
     def test_ensemble_config(self):
         # Create an ensemble with two models of different weights
@@ -31,14 +33,14 @@ class TestOpenAILLM(unittest.TestCase):
 
         asyncio.run(run())
 
-    def test_generate_with_context(self):
+    def test_ensemble_generate(self):
         async def run():
-            result = await self.llm.generate_with_context(
-                system_message="Test system",
-                messages=[{"role": "user", "content": "can you program a python app"}],
-            )
-            print("Result:", result)
-            self.assertIsInstance(result, str)
+            result = await self.ensemble.generate("can you program a python app?")
+            print("Ensemble Result:", result)
+            self.assertIsInstance(result, list)
+            self.assertTrue(all(isinstance(r, str) for r in result))
+            # Optionally, check the first result
+            self.assertIsInstance(result[0], str)
 
         asyncio.run(run())
 

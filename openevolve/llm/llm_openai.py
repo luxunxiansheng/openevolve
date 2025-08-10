@@ -3,6 +3,7 @@ OpenAI API interface for LLMs
 """
 
 import asyncio
+from email import message
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -48,19 +49,12 @@ class OpenAILLM(LLMInterface):
             base_url=self.api_base,
         )
 
-    async def generate(self, prompt: str, **kwargs) -> str:
-        """Generate text from a prompt"""
-        return await self.generate_with_context(
-            system_message=self.system_message,
-            messages=[{"role": "user", "content": prompt}],
-            **kwargs,
-        )
-
-    async def generate_with_context(
-        self, system_message: str, messages: List[Dict[str, str]], **kwargs
-    ) -> str:
+    async def generate(self, prompt: str, system_message: Optional[str] = None, **kwargs) -> str:
         """Generate text using a system message and conversational context"""
-        # Prepare messages with system message
+        if system_message is None:
+            system_message = self.system_message
+            
+        messages = [{"role": "user", "content": prompt}]
         formatted_messages = [{"role": "system", "content": system_message}]
         formatted_messages.extend(messages)
 

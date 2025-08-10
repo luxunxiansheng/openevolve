@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 class EnsembleLLM(LLMInterface):
     """Ensemble of LLMs"""
 
-    def __init__(self, 
-                 ensemble_models: List[LLMInterface],
-                 weights: Optional[List[float]] = None):
+    def __init__(self, ensemble_models: List[LLMInterface], weights: Optional[List[float]] = None):
         self.ensemble_models = ensemble_models
         if weights is None:
             # Default to equal weights if not provided
@@ -35,22 +33,10 @@ class EnsembleLLM(LLMInterface):
 
         # Set up random state for deterministic model selection
         self.random_state = random.Random()
-        
+
         logger.info(
             f"Initialized LLM ensemble with {len(ensemble_models)} models with weights: {self.weights}"
         )
-
-    async def generate(self, prompt: str, **kwargs) -> str:
-        """Generate text using a randomly selected model based on weights"""
-        model = self._sample_model()
-        return await model.generate(prompt, **kwargs)
-
-    async def generate_one_with_context(
-        self, system_message: str, messages: List[Dict[str, str]], **kwargs
-    ) -> str:
-        """Generate text using a system message and conversational context"""
-        model = self._sample_model()
-        return await model.generate_with_context(system_message, messages, **kwargs)
 
     def _sample_model(self) -> LLMInterface:
         """Sample a model from the ensemble based on weights"""
@@ -61,28 +47,16 @@ class EnsembleLLM(LLMInterface):
         logger.info(f"Sampled model: {vars(sampled_model)['model']}")
         return sampled_model
 
-    async def generate_multiple(self, prompt: str, n: int, **kwargs) -> List[str]:
-        """Generate multiple texts in parallel"""
-        tasks = [self.generate(prompt, **kwargs) for _ in range(n)]
-        return await asyncio.gather(*tasks)
-
-    async def parallel_generate(self, prompts: List[str], **kwargs) -> List[str]:
-        """Generate responses for multiple prompts in parallel"""
-        tasks = [self.generate(prompt, **kwargs) for prompt in prompts]
-        return await asyncio.gather(*tasks)
-
-    async def generate_with_context(
-        self, system_message: str, messages: List[Dict[str, str]], **kwargs
-    ) -> str:
-        """Generate text using a all available models and average their returned metrics"""
-
-        # print the messages for debugging
-        logger.debug(f"Generating with context: {system_message}, messages: {messages}")
-
+    async def generate(self, prompt: str, system_message: Optional[str] = None, **kwargs) -> str:
+        """Generate text using all available models and average their returned metrics"""
+        randomly = kwargs.pop("randomly", False)
+        logger.debug(
+            f"Generating with prompt: {prompt}, system_message: {system_message}, randomly: {randomly}"
+        )
+        ensemble_models = self.ensemble_models if not randomly else [self._sample_model()]
         tasks = [
-            model.generate_with_context(system_message, messages, **kwargs)
-            for model in self.ensemble_models
+            model.generate(prompt, system_message=system_message, **kwargs)
+            for model in ensemble_models
         ]
         results = await asyncio.gather(*tasks)
-
         return results

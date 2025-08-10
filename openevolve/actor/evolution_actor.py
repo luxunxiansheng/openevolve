@@ -29,14 +29,14 @@ class EvolutionActor(Actor):
         llm_actor_client: LLMInterface,
         llm_critic: LLMCritic,
         exe_critic: PythonExecutionCritic,
-        language: str="python",
-        diff_based_evolution: bool=False,
-        max_code_length: int= 20480,
+        language: str = "python",
+        diff_based_evolution: bool = False,
+        max_code_length: int = 20480,
         use_llm_critic: bool = True,
-        llm_feedback_weight: float=0.1,
-        artifacts_enabled: bool=True,
-        island_top_programs_limit: int=3,
-        island_diverse_programs_limit: int=2,
+        llm_feedback_weight: float = 0.1,
+        artifacts_enabled: bool = True,
+        island_top_programs_limit: int = 3,
+        island_diverse_programs_limit: int = 2,
     ) -> None:
         self.database = database
 
@@ -111,9 +111,8 @@ class EvolutionActor(Actor):
             iteration_start = time.time()
 
             # Generate code modification
-            llm_response = await self.llm_actor_client.generate_with_context(
-                system_message=prompt["system"],
-                messages=[{"role": "user", "content": prompt["user"]}],
+            llm_response = await self.llm_actor_client.generate(
+                prompt=prompt["user"], system_message=prompt["system"]
             )
 
             logger.debug(f"LLM response for iteration {iteration}: {llm_response}")

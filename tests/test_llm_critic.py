@@ -1,5 +1,4 @@
 import unittest
-import asyncio
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.critic.critic import EvaluationResult
 from openevolve.llm.llm_openai import OpenAILLM

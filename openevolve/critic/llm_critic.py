@@ -8,6 +8,7 @@ from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 
+
 class LLMCritic(Critic):
     """
     Critic that uses a large language model (LLM) to evaluate Python code.
@@ -17,37 +18,34 @@ class LLMCritic(Critic):
     It's now regarded as an Agent.
     """
 
-    def __init__(self, 
-                 llm_client: LLMInterface,
-                 prompt_sampler) -> None:
+    def __init__(self, llm_client: LLMInterface, prompt_sampler) -> None:
         """
         Initialize the LLM critic with a client that interacts with the LLM.
-        
+
         Args:
             llm_client (Any): An instance of a client that can communicate with the LLM.
         """
         self.llm_client = llm_client
         self.prompt_sampler = prompt_sampler
-       
 
     async def evaluate(self, **kwargs) -> EvaluationResult:
         """
         Evaluate the provided Python code using the LLM.
-        
+
         Args:
             **kwargs: Arbitrary keyword arguments, including 'program_code' which is the code to evaluate.
-        
+
         Returns:
             EvaluationResult: The result of the evaluation containing metrics and artifacts.
         """
         evolved_program_code = kwargs.get("evolved_program_code")
         if not evolved_program_code:
             raise ValueError("program_code must be provided for evaluation.")
-        
+
         program_id = kwargs.get("program_id", "default_program_id")
         if not isinstance(program_id, str):
             raise ValueError("program_id must be a string.")
-        
+
         try:
             # Create prompt for LLM
             prompt = self.prompt_sampler.build_prompt(
@@ -55,15 +53,15 @@ class LLMCritic(Critic):
             )
 
             # Get LLM response
-            responses = await self.llm_client.generate_with_context(
-                prompt["system"], [{"role": "user", "content": prompt["user"]}]
+            responses = await self.llm_client.generate(
+                prompt["user"], system_message=prompt["system"]
             )
-            
+
             # Extract JSON from response
             artifacts = {}
             avg_metrics = {}
             json_pattern = r"```json\n(.*?)\n```"
-            
+
             for i, response in enumerate(responses):
                 try:
                     json_match = re.search(json_pattern, response, re.DOTALL)
@@ -89,9 +87,13 @@ class LLMCritic(Critic):
                             metrics[key] = value
                         else:
                             artifacts[key] = value
-                    
-                    # Weight of the model in the ensemble (default to 1.0 as ensemble is not defined)
-                    weight = self.llm_client.weights[i] if self.llm_client.weights else 1.0
+
+                    # Use weights if available (EnsembleLLM), else default to 1.0
+                    weight = (
+                        getattr(self.llm_client, "weights", [1.0] * len(responses))[i]
+                        if hasattr(self.llm_client, "weights")
+                        else 1.0
+                    )
 
                     # Average the metrics
                     for name, value in metrics.items():
@@ -99,25 +101,20 @@ class LLMCritic(Critic):
                             avg_metrics[name] += value * weight
                         else:
                             avg_metrics[name] = value * weight
-                            
+
                 except json.JSONDecodeError as e:
                     logger.warning(f"Error parsing JSON from response {i}: {str(e)}")
                     continue
                 except Exception as e:
                     logger.warning(f"Error processing response {i}: {str(e)}")
                     continue
-                    
+
             return EvaluationResult(
                 metrics=avg_metrics,
                 artifacts=artifacts,
             )
-            
+
         except Exception as e:
             logger.error(f"Error in LLM evaluation: {str(e)}")
             traceback.print_exc()
             return EvaluationResult(metrics={}, artifacts={})
-
-
-
-
-   

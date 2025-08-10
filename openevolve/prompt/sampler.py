@@ -149,11 +149,11 @@ class PromptSampler:
 
         # Format artifacts section if enabled and available
         artifacts_section = ""
-    if self.include_artifacts and program_artifacts:
+        if self.include_artifacts and program_artifacts:
             artifacts_section = self._render_artifacts(program_artifacts)
 
         # Apply stochastic template variations if enabled
-    if self.use_template_stochasticity:
+        if self.use_template_stochasticity:
             user_template = self._apply_template_variations(user_template)
 
         # Format the final user message

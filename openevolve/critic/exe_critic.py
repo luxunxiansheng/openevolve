@@ -158,7 +158,8 @@ class PythonExecutionCritic(Critic):
 
     def _extract_evaluation_result_from_logs(self, log_output: str) -> EvaluationResult:
         """
-        Extract evaluation results from job logs by parsing various log patterns.
+        Extract evaluation results from job logs by parsing various log patterns,
+        focusing on the log_metrics and log_artifact output.
 
         Args:
             log_output: Raw log output from the job execution
@@ -168,14 +169,6 @@ class PythonExecutionCritic(Critic):
         """
         metrics = {}
         artifacts = {}
-
-        # Simple error detection - just check for errors and store the whole log
-        if self._has_execution_errors(log_output):
-            artifacts["execution_error"] = log_output  # Store the entire log as error info
-            metrics["execution_success"] = False
-            metrics["error_score"] = 0.0  # Penalty for execution errors
-        else:
-            metrics["execution_success"] = True
 
         # Define regex patterns for different log formats
         patterns = self._get_log_patterns()
@@ -197,7 +190,111 @@ class PythonExecutionCritic(Critic):
             if not processed:
                 i += 1
 
+        # Log the extracted results using the base Critic class methods
+        if metrics:
+            logger.info("Extracted metrics from logs:")
+            self.log_metrics(metrics)
+
+        if artifacts:
+            logger.info("Extracted artifacts from logs:")
+            self.log_artifact(artifacts)
+
         return EvaluationResult(metrics=metrics, artifacts=artifacts)
+
+    def _find_actual_traceback(self, lines: list, start_index: int) -> list:
+        """
+        Find the actual traceback in the logs near the traceback object reference.
+
+        Args:
+            lines: All log lines
+            start_index: Index where traceback object was found
+
+        Returns:
+            List of traceback lines if found, empty list otherwise
+        """
+        # Look backward and forward from the current position for traceback
+        search_range = 50  # Number of lines to search in each direction
+        start = max(0, start_index - search_range)
+        end = min(len(lines), start_index + search_range)
+
+        traceback_lines = []
+        in_traceback = False
+
+        for i in range(start, end):
+            line = lines[i]
+            if "Traceback (most recent call last):" in line:
+                in_traceback = True
+                traceback_lines = [line]
+            elif in_traceback:
+                traceback_lines.append(line)
+                # Stop collecting when we hit a new log entry or empty line followed by non-indented text
+                if line.strip() == "" and len(traceback_lines) > 3:
+                    break
+                elif (
+                    line
+                    and not line.startswith(" ")
+                    and not line.startswith("\t")
+                    and ("Error" in line or "Exception" in line)
+                    and ":" in line
+                ):
+                    break
+
+        return traceback_lines
+
+    def _extract_error_details(self, log_output: str) -> dict:
+        """
+        Extract detailed error information from log output.
+
+        Args:
+            log_output: Raw log output from job execution
+
+        Returns:
+            Dictionary containing error details
+        """
+        error_artifacts = {}
+
+        # Look for traceback information
+        lines = log_output.splitlines()
+        traceback_lines = []
+        in_traceback = False
+
+        for line in lines:
+            if "Traceback (most recent call last):" in line:
+                in_traceback = True
+                traceback_lines = [line]
+            elif in_traceback:
+                traceback_lines.append(line)
+                # Stop collecting when we hit a new log entry or empty line followed by non-indented text
+                if line.strip() == "" and len(traceback_lines) > 3:
+                    break
+                elif (
+                    line
+                    and not line.startswith(" ")
+                    and not line.startswith("\t")
+                    and "Error" in line
+                ):
+                    traceback_lines.append(line)
+                    break
+
+        if traceback_lines:
+            error_artifacts["traceback"] = "\n".join(traceback_lines)
+
+            # Extract the error message from the last line of traceback
+            last_line = traceback_lines[-1].strip()
+            if ":" in last_line:
+                error_type, error_msg = last_line.split(":", 1)
+                error_artifacts["error"] = f"Error during evaluation: {error_msg.strip()}"
+                error_artifacts["error_type"] = error_type.strip()
+            else:
+                error_artifacts["error"] = f"Error during evaluation: {last_line}"
+        else:
+            # Fallback - store the entire log as error info
+            error_artifacts["execution_error"] = log_output
+            error_artifacts["error"] = "Error during evaluation: Unknown error occurred"
+
+        error_artifacts["validity"] = 0.0
+
+        return error_artifacts
 
     def _has_execution_errors(self, log_output: str) -> bool:
         """
@@ -229,6 +326,9 @@ class PythonExecutionCritic(Critic):
             "artifact_bytes": re.compile(r"^Artifact ([^:]+): (\d+) bytes$"),
             "eval_result": re.compile(r"Evaluation Result: (.*)"),
             "artifacts_dict": re.compile(r"Artifacts: (.*)"),
+            "traceback_obj": re.compile(
+                r"^Artifact traceback: <traceback object at 0x[a-fA-F0-9]+>$"
+            ),
         }
 
     def _process_log_match(
@@ -256,6 +356,13 @@ class PythonExecutionCritic(Critic):
             return self._process_evaluation_result_line(match, metrics, current_index)
         elif pattern_name == "artifacts_dict":
             return self._process_artifacts_dict_line(match, lines, artifacts, current_index)
+        elif pattern_name == "traceback_obj":
+            # Handle traceback object references - try to find actual traceback in logs
+            # Look for the actual traceback near this line
+            traceback_lines = self._find_actual_traceback(lines, current_index)
+            if traceback_lines:
+                artifacts["traceback"] = "\n".join(traceback_lines)
+            return current_index + 1
         else:
             return current_index + 1
 

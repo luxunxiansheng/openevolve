@@ -1,5 +1,5 @@
-
 from openevolve.critic.critic import EvaluationResult, Critic
+
 
 # This part remains fixed (not evolved)
 def run_packing():
@@ -7,8 +7,11 @@ def run_packing():
     centers, radii, sum_radii = construct_packing()
     return centers, radii, sum_radii
 
-        # Target value from the paper
+    # Target value from the paper
+
+
 TARGET_VALUE = 2.635  # AlphaEvolve result for n=26
+
 
 class CirclePackingCritic(Critic):
     """
@@ -16,69 +19,85 @@ class CirclePackingCritic(Critic):
     This critic evaluates the solution based on the sum of radii and checks for overlaps.
     """
 
-
     async def evaluate(self, **kwargs) -> EvaluationResult:
 
-        
-        centers = run_packing()[0]  # Get centers from the packing function
-        radii = run_packing()[1]  # Get radii from the packing function
-        reported_sum_radii = run_packing()[2]  # Get sum of radii
+        try:
 
-        # Calculate the sum of radii
-        sum_radii = sum(radii)
+            centers = run_packing()[0]  # Get centers from the packing function
+            radii = run_packing()[1]  # Get radii from the packing function
+            reported_sum_radii = run_packing()[2]  # Get sum of radii
 
-        # Check for overlaps
-        valid, validation_details = self._validate_packing(centers, radii)
+            # Calculate the sum of radii
+            sum_radii = sum(radii)
 
-                # Make sure reported_sum matches the calculated sum
-        sum_mismatch = abs(sum_radii - reported_sum_radii) > 1e-6
-        if sum_mismatch:
-            mismatch_warning = (
-                f"Warning: Reported sum {reported_sum_radii} doesn't match calculated sum {sum_radii}"
-            )
-            print(mismatch_warning)
+            # Check for overlaps
+            valid, validation_details = self._validate_packing(centers, radii)
 
-        # Target ratio (how close we are to the target)
-        target_ratio = sum_radii / TARGET_VALUE if valid else 0.0
+            # Make sure reported_sum matches the calculated sum
+            sum_mismatch = abs(sum_radii - reported_sum_radii) > 1e-6
+            if sum_mismatch:
+                mismatch_warning = f"Warning: Reported sum {reported_sum_radii} doesn't match calculated sum {sum_radii}"
+                print(mismatch_warning)
 
-        # Validity score
-        validity = 1.0 if valid else 0.0
+            # Target ratio (how close we are to the target)
+            target_ratio = sum_radii / TARGET_VALUE if valid else 0.0
 
-        # Combined score - higher is better
-        combined_score = target_ratio * validity
+            # Validity score
+            validity = 1.0 if valid else 0.0
 
-        artifacts = {
-           
-            "packing_summary": f"Sum of radii: {sum_radii:.6f}/{TARGET_VALUE} = {target_ratio:.4f}",
-            "validation_report": f"Valid: {valid}, Violations: {len(validation_details.get('boundary_violations', []))} boundary, {len(validation_details.get('overlaps', []))} overlaps",
-        }
+            # Combined score - higher is better
+            combined_score = target_ratio * validity
 
-            # Add sum mismatch warning if present
-        if sum_mismatch:
-            artifacts["sum_mismatch"] = f"Reported: {reported_sum_radii:.6f}, Calculated: {sum_radii:.6f}"
-
-        # Add successful packing stats for good solutions
-        if valid and target_ratio > 0.95:  # Near-optimal solutions
-            artifacts["stdout"] = f"Excellent packing! Achieved {target_ratio:.1%} of target value"
-            artifacts[
-                "radius_stats"
-            ] = f"Min: {validation_details['min_radius']:.6f}, Max: {validation_details['max_radius']:.6f}, Avg: {validation_details['avg_radius']:.6f}"
-
-
-        metrics = {
-            "sum_radii": reported_sum_radii,
-            "target_ratio": target_ratio,
-            "validity": validity,
-            "combined_score": combined_score,
+            artifacts = {
+                "packing_summary": f"Sum of radii: {sum_radii:.6f}/{TARGET_VALUE} = {target_ratio:.4f}",
+                "validation_report": f"Valid: {valid}, Violations: {len(validation_details.get('boundary_violations', []))} boundary, {len(validation_details.get('overlaps', []))} overlaps",
             }
 
-        
-        # Importantly, log the artifacts and metrics otherwise the critic will not work
-        # This is necessary for the critic to function correctly
-        self.log_artifact(artifacts)
-        self.log_metrics(metrics)
+            # Add sum mismatch warning if present
+            if sum_mismatch:
+                artifacts["sum_mismatch"] = (
+                    f"Reported: {reported_sum_radii:.6f}, Calculated: {sum_radii:.6f}"
+                )
 
-        return EvaluationResult(metrics=metrics, artifacts=artifacts)
+            # Add successful packing stats for good solutions
+            if valid and target_ratio > 0.95:  # Near-optimal solutions
+                artifacts["stdout"] = (
+                    f"Excellent packing! Achieved {target_ratio:.1%} of target value"
+                )
+                artifacts["radius_stats"] = (
+                    f"Min: {validation_details['min_radius']:.6f}, Max: {validation_details['max_radius']:.6f}, Avg: {validation_details['avg_radius']:.6f}"
+                )
+
+            metrics = {
+                "combined_score": combined_score,
+            }
+
+            # Importantly, log the artifacts and metrics otherwise the critic will not work
+            # This is necessary for the critic to function correctly
+            self.log_artifact(dict(artifacts))
+            self.log_metrics(dict(metrics))
+
+            return EvaluationResult(metrics=metrics, artifacts=artifacts)
+        except Exception as e:
+            # Handle any exceptions that occur during evaluation
+            import traceback
+
+            error_message = f"Error during evaluation: {str(e)}"
+            full_traceback = traceback.format_exc()
+
+            print(f"Error occurred: {error_message}")
+            print(f"Full traceback:\n{full_traceback}")
+
+            artifacts = {"error": error_message, "validity": 0.0, "traceback": full_traceback}
+            metrics = {
+                "combined_score": 0.0,
+            }
+
+            # Log the error artifacts and metrics
+            self.log_artifact(dict(artifacts))
+            self.log_metrics(dict(metrics))
+
+            return EvaluationResult(metrics=metrics, artifacts=artifacts)
 
     def _validate_packing(self, centers, radii):
         """

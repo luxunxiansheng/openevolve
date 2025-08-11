@@ -21,7 +21,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
         # Await the coroutine returned by evaluate
         result = await self.exe_critic.evaluate(
-            evolved_program_code=python_code, runtime_env=runtime_env, program_id="test_program_3"
+            evolved_program_code=python_code, runtime_env=runtime_env, program_id="test_program_4"
         )
         print(result)
 

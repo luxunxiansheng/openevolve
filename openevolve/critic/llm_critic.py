@@ -50,7 +50,7 @@ class LLMCritic(Critic):
         if not evolved_program_code:
             raise ValueError("program_code must be provided for evaluation.")
 
-        user_template_key = kwargs.get("user_template_key", Templates.CRITIC_SYSTEM)
+        user_template_key = kwargs.get("user_template_key", None)
 
         try:
             # Create prompt for LLM

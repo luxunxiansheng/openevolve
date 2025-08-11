@@ -1,7 +1,6 @@
 """
 Prompt sampling for OpenEvolve
 """
-
 import logging
 import random
 from typing import Any, Dict, List, Optional, Union
@@ -61,6 +60,7 @@ class PromptSampler:
 
     def build_prompt(
         self,
+        user_template_key: str,
         current_program: str = "",
         parent_program: str = "",
         program_metrics: Dict[str, float] = {},
@@ -68,8 +68,6 @@ class PromptSampler:
         top_programs: List[Dict[str, Any]] = [],
         inspirations: List[Dict[str, Any]] = [],  # Add inspirations parameter
         language: str = "python",
-        diff_based_evolution: bool = True,
-        user_template_key: Optional[str] = None,
         program_artifacts: Optional[Dict[str, Union[str, bytes]]] = None,
         **kwargs: Any,
     ) -> Dict[str, str]:
@@ -85,7 +83,6 @@ class PromptSampler:
             inspirations: List of inspiration programs (diverse/creative examples)
             language: Programming language
             evolution_round: Current evolution round
-            diff_based_evolution: Whether to use diff-based evolution (True) or full rewrites (False)
             user_template_key: Optional override for template key
             program_artifacts: Optional artifacts from program evaluation
             **kwargs: Additional keys to replace in the user prompt
@@ -93,18 +90,10 @@ class PromptSampler:
         Returns:
             Dictionary with 'system' and 'user' keys
         """
-        # Select template based on evolution mode (with overrides)
-        if user_template_key:
-            # Use explicitly provided template key
-            selected_template_key = user_template_key
-        else:
-            # Default behavior: diff-based vs full rewrite
-            selected_template_key = (
-                Templates.DIFF_USER if diff_based_evolution else Templates.FULL_REWRITE_USER
-            )
+
 
         # Get the template
-        user_template = self.template_manager.get_template(selected_template_key)
+        user_template = self.template_manager.get_template(user_template_key)
         system_message = self.template_manager.get_template(self.system_template_key)
 
         # Format metrics

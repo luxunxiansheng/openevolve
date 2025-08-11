@@ -73,7 +73,13 @@ class EvolutionActor(Actor):
         try:
 
             iteration = kwargs.get("iteration", 0)
-            user_template_key = kwargs.get("user_template_key", Templates.ACTOR_SYSTEM)
+            user_template_key = kwargs.get("user_template_key", None)
+
+            if user_template_key is None:
+                # Default behavior: diff-based vs full rewrite
+                user_template_key = (
+                    Templates.DIFF_USER if self.diff_based_evolution else Templates.FULL_REWRITE_USER
+                )
 
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
@@ -106,8 +112,7 @@ class EvolutionActor(Actor):
                 inspirations=[p.to_dict() for p in inspirations],
                 language=self.language,
                 evolution_round=iteration,
-                user_template_key=user_template_key,
-                diff_based_evolution=self.diff_based_evolution,
+                user_template_key=user_template_key,              
                 program_artifacts=parent_artifacts if parent_artifacts else None,
             )
 
@@ -166,7 +171,9 @@ class EvolutionActor(Actor):
             llm_evaluation_result = None
             if self.use_llm_critic:
                 llm_evaluation_result = await self.llm_critic.evaluate(
-                    evolved_program_code=evovled_child_code, program_id=child_id
+                    evolved_program_code=evovled_child_code,
+                    program_id=child_id,
+                    user_template_key= Templates.EVALUATION
                 )
 
                 for name, value in llm_evaluation_result.metrics.items():

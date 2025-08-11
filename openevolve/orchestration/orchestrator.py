@@ -109,10 +109,12 @@ class Orchestrator:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             try:
                 logger.info(ray.get(self.database.log_island_status.remote()))
+                
                 result: ActionResult = await self.evolution_actor.act(
                     iteration=current_iteration
                 )  # This returns a Result object
 
+                logger.info(f"Result from evolution actor: {result}")
                 
                 # Reconstruct program from dict
                 child_program = Program(**result.child_program_dict)
@@ -126,20 +128,7 @@ class Orchestrator:
                         self.database.store_artifacts.remote(child_program.id, result.artifacts)
                     )
 
-                # Log prompts
-                if result.prompt:
-                    ray.get(
-                        self.database.log_prompt.remote(
-                            template_key=(
-                                Templates.FULL_REWRITE_USER
-                                if not self.diff_based_evolution
-                                else Templates.DIFF_USER
-                            ),
-                            program_id=child_program.id,
-                            prompt=result.prompt,
-                            responses=[result.llm_response] if result.llm_response else [],
-                        )
-                    )
+
 
                 # Island management
                 if (
@@ -149,7 +138,7 @@ class Orchestrator:
                     ray.get(self.database.next_island.remote())
                     current_island_counter = 0
                     current_island = ray.get(self.database.get_current_island.remote())
-                    logger.debug(f"Switched to island {current_island}")
+                    logger.info(f"Switched to island {current_island}")
 
                 current_island_counter += 1
                 ray.get(self.database.increment_island_generation.remote())
@@ -169,34 +158,13 @@ class Orchestrator:
                     f"completed in {result.iteration_time:.2f}s"
                 )
 
-                avg_score = 0.0
-                if child_program.metrics:
-                    metrics_str = ", ".join(
-                        [
-                            f"{k}={v:.4f}" if isinstance(v, (int, float)) else f"{k}={v}"
-                            for k, v in child_program.metrics.items()
-                        ]
-                    )
-                    logger.info(f"Metrics: {metrics_str}")
-
-                    # Check if this is the first program without combined_score
-                    if not hasattr(self, "_warned_about_combined_score"):
-                        self._warned_about_combined_score = False
-
-                    if (
-                        "combined_score" not in child_program.metrics
-                        and not self._warned_about_combined_score
-                    ):
-
-                        avg_score = safe_numeric_average(child_program.metrics)
-                        logger.warning(
-                            f"⚠️  No 'combined_score' metric found in evaluation results. "
-                            f"Using average of all numeric metrics ({avg_score:.4f}) for evolution guidance. "
-                            f"For better evolution results, please modify your evaluator to return a 'combined_score' "
-                            f"metric that properly weights different aspects of program performance."
-                        )
-                        self._warned_about_combined_score = True
-
+         
+                avg_score = safe_numeric_average(child_program.metrics)
+                logger.info(
+                    f"Iteration {current_iteration}: "
+                    f"Average score for program {child_program.id} is {avg_score:.2f}"
+                )
+                    
                 # Check for new best
                 best_program_id = ray.get(self.database.get_best_program_id.remote())
                 if best_program_id == child_program.id:
@@ -208,13 +176,8 @@ class Orchestrator:
                     self._save_best_program(child_program)
 
                 # Check target score
-                if self.target_score is not None and child_program.metrics:
-                    numeric_metrics = [
-                        v for v in child_program.metrics.values() if isinstance(v, (int, float))
-                    ]
-                    if numeric_metrics:
-                        avg_score = sum(numeric_metrics) / len(numeric_metrics)
-                        if avg_score >= self.target_score:
+                if self.target_score is not None :
+                    if avg_score >= self.target_score:
                             logger.info(
                                 f"Target score {self.target_score} reached at iteration {current_iteration}"
                             )

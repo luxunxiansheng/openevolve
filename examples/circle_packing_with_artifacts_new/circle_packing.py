@@ -76,7 +76,7 @@ def compute_max_radii(centers):
             dist = np.sqrt(np.sum((centers[i] - centers[j]) ** 2))
 
             # If current radii would cause overlap
-            if radii[i] + radii[j] > dist_1:
+            if radii[i] + radii[j] > dist:
                 # Scale both radii proportionally
                 scale = dist / (radii[i] + radii[j])
                 radii[i] *= scale

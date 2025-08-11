@@ -190,14 +190,6 @@ class PythonExecutionCritic(Critic):
             if not processed:
                 i += 1
 
-        # Log the extracted results using the base Critic class methods
-        if metrics:
-            logger.info("Extracted metrics from logs:")
-            self.log_metrics(metrics)
-
-        if artifacts:
-            logger.info("Extracted artifacts from logs:")
-            self.log_artifact(artifacts)
 
         return EvaluationResult(metrics=metrics, artifacts=artifacts)
 

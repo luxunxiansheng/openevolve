@@ -87,6 +87,9 @@ class EvolutionActor(Actor):
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
 
+            grand_parent =  ray.get(self.database.get.remote(parent.parent_id)) if parent.parent_id else None
+
+
             # Get artifacts for the parent program if available
             parent_artifacts = ray.get(self.database.get_artifacts.remote(parent.id))
 
@@ -105,10 +108,10 @@ class EvolutionActor(Actor):
                 self.database.get_top_programs.remote(self.top_programs_limit, parent_island)
             )
 
-            # Build prompt
+            # Build prompt to create new code based on parent and inspirations
             prompt = self.actor_prompt_sampler.build_prompt(
                 current_program=parent.code,
-                parent_program=parent.code,
+                parent_program= grand_parent.code,
                 program_metrics=parent.metrics,
                 previous_programs=[p.to_dict() for p in island_previous_programs],
                 top_programs=[p.to_dict() for p in island_top_programs],

@@ -4,6 +4,7 @@ import uuid
 
 import ray
 from ray.actor import ActorHandle
+from sympy import N
 
 from openevolve.actor.actor import Actor, ActionResult
 from openevolve.critic.exe_critic import PythonExecutionCritic
@@ -168,6 +169,18 @@ class EvolutionActor(Actor):
             exe_evaluation_result = await self.exe_critic.evaluate(
                 evolved_program_code=evovled_child_code, program_id=child_id
             )
+            
+            exe_error = None
+            if exe_evaluation_result.metrics["execution_success"] == False:
+                logger.warning(
+                    f"Iteration {iteration}: Execution failed for child program {child_id}"
+                )
+                exe_error = (
+                    f"Execution failed for child program {child_id}. "
+                    f"Error: {exe_evaluation_result.metrics.get('error_message', 'Unknown error')}"
+                )
+                
+
             llm_evaluation_result = None
             if self.use_llm_critic:
                 llm_evaluation_result = await self.llm_critic.evaluate(
@@ -208,7 +221,7 @@ class EvolutionActor(Actor):
                 llm_response=llm_response,
                 artifacts=self.artifacts if self.artifacts_enabled else None,
                 iteration=iteration,
-                error=None,
+                error= exe_error,
             )
 
         except Exception as e:

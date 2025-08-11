@@ -4,6 +4,7 @@ import time
 from typing import Optional
 import uuid
 
+from networkx import number_of_isolates
 import ray
 
 from openevolve.actor.actor import ActionResult
@@ -12,6 +13,7 @@ from openevolve.critic.exe_critic import PythonExecutionCritic
 from openevolve.critic.llm_critic import LLMCritic
 from openevolve.database.database import Program, ProgramDatabase
 from openevolve.llm.llm_ensemble import EnsembleLLM
+from ..llm.llm_openai import OpenAILLM
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.prompt.templates import Templates
 from openevolve.utils.metrics_utils import safe_numeric_average
@@ -28,7 +30,7 @@ class Orchestrator:
         evoved_program_path,
         output_dir: str,
         # Orchestrator config fields
-        max_iterations: int = 1000,
+        max_iterations: int = 100,
         target_score: float = 1.0,
         file_extension: str = ".py",
         language: str = "python",
@@ -36,52 +38,41 @@ class Orchestrator:
         iterations_per_island: int = 10,
         # Database config fields
         db_num_islands: int = 5,
-        db_other_kwargs: dict = {},
-        # PromptSampler config fields
-        prompt_kwargs: dict = {},
-        # LLM config fields (list of dicts for ensemble)
-        llm_model_cfgs: list = None,
-        llm_weights: list = None,
+
+    
     ):
+        self.output_dir = output_dir    
         self.evolved_program_path = evoved_program_path
-        self.output_dir = output_dir
-        self.max_iterations = max_iterations
-        self.target_score = target_score
         self.file_extension = file_extension
         self.language = language
         self.diff_based_evolution = diff_based_evolution
-        self.programs_per_island = max(
-            1,
-            max_iterations // (db_num_islands * iterations_per_island),
-        )
+        self.target_score = target_score
+        self.max_iterations = max_iterations
+        self.programs_per_island = max_iterations // (iterations_per_island * db_num_islands)
 
-        # Database
-        db_kwargs = dict(num_islands=db_num_islands, **db_other_kwargs)
-        self.database = ray.remote(ProgramDatabase).remote(**db_kwargs)
+        # Initialize the program database
+        self.database = ray.remote(ProgramDatabase).remote(num_islands=db_num_islands)
 
-        # LLM ensemble
-        llm_model_cfgs = llm_model_cfgs or [{}]
-        llm_client = EnsembleLLM(
-            [
-                # Each dict in llm_model_cfgs is passed as kwargs
-                type("Dummy", (), cfg)() if isinstance(cfg, dict) else cfg
-                for cfg in llm_model_cfgs
-            ],
-            weights=llm_weights,
-        )
+     
+        actor_prompt_sampler = PromptSampler(system_template_key=Templates.ACTOR_SYSTEM)
+        llm_actor_client = EnsembleLLM([OpenAILLM()])
 
-        # PromptSampler
-        prompt_sampler = PromptSampler(**prompt_kwargs)
-        llm_critic = LLMCritic(llm_client, prompt_sampler)
+        critic_prompt_sampler = PromptSampler(system_template_key=Templates.CRITIC_SYSTEM)
+        llm_critic_client = EnsembleLLM([OpenAILLM()])
+        llm_critic = LLMCritic(llm_critic_client, critic_prompt_sampler)
+
         exe_critic = PythonExecutionCritic(critic_program_path=critic_program_path)
 
+        # Initialize the EvolutionActor with the database and critics
         self.evolution_actor = EvolutionActor(
             database=self.database,
-            actor_prompt_sampler=prompt_sampler,
-            llm_actor_client=llm_client,
+            actor_prompt_sampler=actor_prompt_sampler,
+            llm_actor_client=llm_actor_client,
             llm_critic=llm_critic,
             exe_critic=exe_critic,
         )
+
+
 
     async def run(self):
         """Run the orchestration process"""

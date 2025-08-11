@@ -111,7 +111,7 @@ class EvolutionActor(Actor):
             # Build prompt to create new code based on parent and inspirations
             prompt = self.actor_prompt_sampler.build_prompt(
                 current_program=parent.code,
-                parent_program= grand_parent.code,
+                parent_program= grand_parent.code if grand_parent else None,
                 program_metrics=parent.metrics,
                 previous_programs=[p.to_dict() for p in island_previous_programs],
                 top_programs=[p.to_dict() for p in island_top_programs],

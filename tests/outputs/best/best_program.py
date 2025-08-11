@@ -1,14 +1,12 @@
-
-
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
+"""Optimized circle packing algorithm for n=26 circles in a unit square"""
 import numpy as np
 
 
 def construct_packing():
     """
-    Construct a specific arrangement of 26 circles in a unit square
-    that attempts to maximize the sum of their radii.
+    Construct an optimized arrangement of 26 circles in a unit square
+    to maximize the sum of their radii.
 
     Returns:
         Tuple of (centers, radii, sum_of_radii)
@@ -19,44 +17,41 @@ def construct_packing():
     n = 26
     centers = np.zeros((n, 2))
 
-    # Place a central circle
+    # Place a central circle at the center of the square
     centers[0] = [0.5, 0.5]
 
-    # Place circles in concentric rings
-    index = place_ring(centers, 1, 0.3, 8)
-    index = place_ring(centers, index, 0.7, 16)
+    # Place 8 circles in a ring around the central circle
+    place_ring(centers, start_idx=1, num_circles=8, radius=0.25)
 
-    # Ensure all circles are within the unit square
+    # Place 16 circles in a larger ring around the central circle
+    place_ring(centers, start_idx=9, num_circles=16, radius=0.4)
+
+    # Ensure all centers are within the unit square bounds
     centers = np.clip(centers, 0.01, 0.99)
 
-    # Compute maximum valid radii
+    # Compute maximum valid radii for each circle position
     radii = compute_max_radii(centers)
 
-    # Calculate the sum of radii
-    sum_radii = np.sum(radii)
-
-    return centers, radii, sum_radii
+    return centers, radii, np.sum(radii)
 
 
-def place_ring(centers, start_index, radius, num_circles):
+def place_ring(centers, start_idx, num_circles, radius, center_x=0.5, center_y=0.5):
     """
-    Place circles in a ring around a central point.
+    Places a ring of circles around a given center point.
 
     Args:
-        centers: Array to populate with circle positions
-        start_index: Index to begin placing circles
-        radius: Distance from the center of the ring
-        num_circles: Number of circles in the ring
-
-    Returns:
-        The next available index after placing the ring
+        centers: numpy array of circle centers
+        start_idx: index to start placing circles
+        num_circles: number of circles in the ring
+        radius: radius of the ring (distance from center)
+        center_x, center_y: coordinates of the central point
     """
     for i in range(num_circles):
         angle = 2 * np.pi * i / num_circles
-        x = 0.5 + radius * np.cos(angle)
-        y = 0.5 + radius * np.sin(angle)
-        centers[start_index + i] = [x, y]
-    return start_index + num_circles
+        x = center_x + radius * np.cos(angle)
+        y = center_y + radius * np.sin(angle)
+        centers[start_idx + i] = [x, y]
+    return centers
 
 
 def compute_max_radii(centers):
@@ -71,27 +66,22 @@ def compute_max_radii(centers):
         np.array of shape (n) with radius of each circle
     """
     n = centers.shape[0]
-    radii = np.ones(n)
 
-    # Calculate initial radii based on distance to square borders
-    x = centers[:, 0]
-    y = centers[:, 1]
-    border_distances = np.minimum(np.minimum(x, y), np.minimum(1 - x, 1 - y))
-    radii = border_distances.copy()
+    # Step 1: Compute initial radii based on distance to square boundaries
+    horizontal_distance = np.minimum(centers[:, 0], 1 - centers[:, 0])
+    vertical_distance = np.minimum(centers[:, 1], 1 - centers[:, 1])
+    radii = np.minimum(horizontal_distance, vertical_distance)
 
-    # Adjust radii to prevent overlaps between circles
+    # Step 2: Adjust radii to prevent overlaps between circles
     for i in range(n):
         for j in range(i + 1, n):
-            dx = centers[i][0] - centers[j][0]
-            dy = centers[i][1] - centers[j][1]
-            distance = np.sqrt(dx**2 + dy**2)
-
+            dx = centers[i, 0] - centers[j, 0]
+            dy = centers[i, 1] - centers[j, 1]
+            distance = np.hypot(dx, dy)
             if radii[i] + radii[j] > distance:
                 scale = distance / (radii[i] + radii[j])
                 radii[i] *= scale
                 radii[j] *= scale
 
     return radii
-
-
 # EVOLVE-BLOCK-END

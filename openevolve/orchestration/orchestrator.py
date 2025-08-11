@@ -112,114 +112,113 @@ class Orchestrator:
                 result: ActionResult = await self.evolution_actor.act(
                     iteration=current_iteration
                 )  # This returns a Result object
-                if result.error:
-                    logger.warning(f"Iteration {current_iteration} error: {result.error}")
-                elif result.child_program_dict:
-                    # Reconstruct program from dict
-                    child_program = Program(**result.child_program_dict)
 
-                    # Add to database
-                    ray.get(self.database.add.remote(child_program, iteration=current_iteration))
+                
+                # Reconstruct program from dict
+                child_program = Program(**result.child_program_dict)
 
-                    # Store artifacts
-                    if result.artifacts:
-                        ray.get(
-                            self.database.store_artifacts.remote(child_program.id, result.artifacts)
-                        )
+                # Add to database
+                ray.get(self.database.add.remote(child_program, iteration=current_iteration))
 
-                    # Log prompts
-                    if result.prompt:
-                        ray.get(
-                            self.database.log_prompt.remote(
-                                template_key=(
-                                    Templates.FULL_REWRITE_USER
-                                    if not self.diff_based_evolution
-                                    else Templates.DIFF_USER
-                                ),
-                                program_id=child_program.id,
-                                prompt=result.prompt,
-                                responses=[result.llm_response] if result.llm_response else [],
-                            )
-                        )
-
-                    # Island management
-                    if (
-                        current_iteration > start_iteration
-                        and current_island_counter >= self.programs_per_island
-                    ):
-                        ray.get(self.database.next_island.remote())
-                        current_island_counter = 0
-                        current_island = ray.get(self.database.get_current_island.remote())
-                        logger.debug(f"Switched to island {current_island}")
-
-                    current_island_counter += 1
-                    ray.get(self.database.increment_island_generation.remote())
-
-                    # Check migration
-                    should_migrate = ray.get(self.database.should_migrate.remote())
-                    if should_migrate:
-                        logger.info(f"Performing migration at iteration {current_iteration}")
-                        ray.get(self.database.migrate_programs.remote())
-                        ray.get(self.database.log_island_status.remote())
-
-                    # Log progress
-                    logger.info(
-                        f"Iteration {current_iteration}: "
-                        f"Program {child_program.id} "
-                        f"(parent: {result.parent_id}) "
-                        f"completed in {result.iteration_time:.2f}s"
+                # Store artifacts
+                if result.artifacts:
+                    ray.get(
+                        self.database.store_artifacts.remote(child_program.id, result.artifacts)
                     )
 
-                    avg_score = 0.0
-                    if child_program.metrics:
-                        metrics_str = ", ".join(
-                            [
-                                f"{k}={v:.4f}" if isinstance(v, (int, float)) else f"{k}={v}"
-                                for k, v in child_program.metrics.items()
-                            ]
+                # Log prompts
+                if result.prompt:
+                    ray.get(
+                        self.database.log_prompt.remote(
+                            template_key=(
+                                Templates.FULL_REWRITE_USER
+                                if not self.diff_based_evolution
+                                else Templates.DIFF_USER
+                            ),
+                            program_id=child_program.id,
+                            prompt=result.prompt,
+                            responses=[result.llm_response] if result.llm_response else [],
                         )
-                        logger.info(f"Metrics: {metrics_str}")
+                    )
 
-                        # Check if this is the first program without combined_score
-                        if not hasattr(self, "_warned_about_combined_score"):
-                            self._warned_about_combined_score = False
+                # Island management
+                if (
+                    current_iteration > start_iteration
+                    and current_island_counter >= self.programs_per_island
+                ):
+                    ray.get(self.database.next_island.remote())
+                    current_island_counter = 0
+                    current_island = ray.get(self.database.get_current_island.remote())
+                    logger.debug(f"Switched to island {current_island}")
 
-                        if (
-                            "combined_score" not in child_program.metrics
-                            and not self._warned_about_combined_score
-                        ):
+                current_island_counter += 1
+                ray.get(self.database.increment_island_generation.remote())
 
-                            avg_score = safe_numeric_average(child_program.metrics)
-                            logger.warning(
-                                f"⚠️  No 'combined_score' metric found in evaluation results. "
-                                f"Using average of all numeric metrics ({avg_score:.4f}) for evolution guidance. "
-                                f"For better evolution results, please modify your evaluator to return a 'combined_score' "
-                                f"metric that properly weights different aspects of program performance."
-                            )
-                            self._warned_about_combined_score = True
+                # Check migration
+                should_migrate = ray.get(self.database.should_migrate.remote())
+                if should_migrate:
+                    logger.info(f"Performing migration at iteration {current_iteration}")
+                    ray.get(self.database.migrate_programs.remote())
+                    ray.get(self.database.log_island_status.remote())
 
-                    # Check for new best
-                    best_program_id = ray.get(self.database.get_best_program_id.remote())
-                    if best_program_id == child_program.id:
-                        logger.info(
-                            f"🌟 New best solution found at iteration {current_iteration}: "
-                            f"{child_program.id}"
-                        )
-                        # Save the new best program
-                        self._save_best_program(child_program)
+                # Log progress
+                logger.info(
+                    f"Iteration {current_iteration}: "
+                    f"Program {child_program.id} "
+                    f"(parent: {result.parent_id}) "
+                    f"completed in {result.iteration_time:.2f}s"
+                )
 
-                    # Check target score
-                    if self.target_score is not None and child_program.metrics:
-                        numeric_metrics = [
-                            v for v in child_program.metrics.values() if isinstance(v, (int, float))
+                avg_score = 0.0
+                if child_program.metrics:
+                    metrics_str = ", ".join(
+                        [
+                            f"{k}={v:.4f}" if isinstance(v, (int, float)) else f"{k}={v}"
+                            for k, v in child_program.metrics.items()
                         ]
-                        if numeric_metrics:
-                            avg_score = sum(numeric_metrics) / len(numeric_metrics)
-                            if avg_score >= self.target_score:
-                                logger.info(
-                                    f"Target score {self.target_score} reached at iteration {current_iteration}"
-                                )
-                                break
+                    )
+                    logger.info(f"Metrics: {metrics_str}")
+
+                    # Check if this is the first program without combined_score
+                    if not hasattr(self, "_warned_about_combined_score"):
+                        self._warned_about_combined_score = False
+
+                    if (
+                        "combined_score" not in child_program.metrics
+                        and not self._warned_about_combined_score
+                    ):
+
+                        avg_score = safe_numeric_average(child_program.metrics)
+                        logger.warning(
+                            f"⚠️  No 'combined_score' metric found in evaluation results. "
+                            f"Using average of all numeric metrics ({avg_score:.4f}) for evolution guidance. "
+                            f"For better evolution results, please modify your evaluator to return a 'combined_score' "
+                            f"metric that properly weights different aspects of program performance."
+                        )
+                        self._warned_about_combined_score = True
+
+                # Check for new best
+                best_program_id = ray.get(self.database.get_best_program_id.remote())
+                if best_program_id == child_program.id:
+                    logger.info(
+                        f"🌟 New best solution found at iteration {current_iteration}: "
+                        f"{child_program.id}"
+                    )
+                    # Save the new best program
+                    self._save_best_program(child_program)
+
+                # Check target score
+                if self.target_score is not None and child_program.metrics:
+                    numeric_metrics = [
+                        v for v in child_program.metrics.values() if isinstance(v, (int, float))
+                    ]
+                    if numeric_metrics:
+                        avg_score = sum(numeric_metrics) / len(numeric_metrics)
+                        if avg_score >= self.target_score:
+                            logger.info(
+                                f"Target score {self.target_score} reached at iteration {current_iteration}"
+                            )
+                            break
 
             except Exception as e:
                 logger.error(f"Error processing result from iteration {current_iteration}: {e}")

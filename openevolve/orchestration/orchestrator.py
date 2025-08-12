@@ -35,7 +35,7 @@ class Orchestrator:
         file_extension: str = ".py",
         language: str = "python",
         diff_based_evolution: bool = True,
-        iterations_per_island: int = 10,
+        iterations_per_island: int = 15,
         # Database config fields
         db_num_islands: int = 5,
 

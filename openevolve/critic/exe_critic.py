@@ -80,7 +80,7 @@ class PythonExecutionCritic(Critic):
             log_output = self._wait_for_job_completion(submission_id)
             result = self._extract_evaluation_result_from_logs(log_output)
 
-            logger.info(f"Extracted evaluation result: {result}")
+            logger.debug(f"Extracted evaluation result: {result}")
             return result
 
     def _submit_evaluation_job(

@@ -114,7 +114,7 @@ class Orchestrator:
                     iteration=current_iteration
                 )  # This returns a Result object
 
-                logger.info(f"Result from evolution actor: {result}")
+                logger.debug(f"Result from evolution actor: {result}")
                 
                 # Reconstruct program from dict
                 child_program = Program(**result.child_program_dict)

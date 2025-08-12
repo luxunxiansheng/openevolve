@@ -20,7 +20,7 @@
                 "--config",
                 "${workspaceFolder}/examples/circle_packing_with_artifacts/config_phase_1.yaml",
                 "--iterations",
-                "100"
+                "1000"
             ],
             "envFile": "${workspaceFolder}/.env"
         }

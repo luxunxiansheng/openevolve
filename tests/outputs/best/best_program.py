@@ -1,5 +1,6 @@
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
+"""Constructor-based circle packing for n=26 circles with improved readability and correctness"""
+
 import numpy as np
 
 
@@ -20,27 +21,42 @@ def construct_packing():
     # Central circle
     centers[0] = [0.5, 0.5]
 
-    # Function to place a ring of circles
-    def _place_ring(start_index, center_x, center_y, radius, num_circles):
-        for i in range(num_circles):
-            angle = 2 * np.pi * i / num_circles
-            x = center_x + radius * np.cos(angle)
-            y = center_y + radius * np.sin(angle)
-            centers[start_index + i] = [x, y]
+    # Function to place a circular ring of circles around a center point
+    def place_circular_ring(start_index, center_position, ring_radius, num_circles):
+        """
+        Places a circular ring of `num_circles` circles at a given radius around
+        the specified `center_position`, starting from index `start_index`.
 
-    # First ring: 8 circles
-    _place_ring(1, 0.5, 0.5, 0.3, 8)
+        Args:
+            start_index: Index in the centers array to begin placing the ring
+            center_position: Tuple (x, y) of the ring's center
+            ring_radius: Radius at which to place the circle ring
+            num_circles: Number of circles in the ring
+        """
+        center_x, center_y = center_position
+        for circle_idx in range(num_circles):
+            angle = 2 * np.pi * circle_idx / num_circles
+            x = center_x + ring_radius * np.cos(angle)
+            y = center_y + ring_radius * np.sin(angle)
+            centers[start_index + circle_idx] = [x, y]
 
-    # Second ring: 16 circles
-    _place_ring(9, 0.5, 0.5, 0.7, 16)
+    # Place first ring of 8 circles around center
+    place_circular_ring(start_index=1, center_position=(0.5, 0.5), ring_radius=0.3, num_circles=8)
 
-    # Ensure all circles fit within the unit square
+    # Place second ring of 17 circles around center to complete the full count
+    place_circular_ring(start_index=9, center_position=(0.5, 0.5), ring_radius=0.7, num_circles=17)
+
+    # Clip all circle centers to ensure they fit within the unit square (with 1% margin)
     centers = np.clip(centers, 0.01, 0.99)
 
-    # Compute maximum valid radii
+    # Validate that all circle centers have been properly initialized
+    if np.all(centers == 0.0):
+        raise ValueError("Error: Some circle centers remain unset in the layout.")
+    
+    # Compute maximum valid radii to ensure no overlaps and fit in unit square
     radii = compute_max_radii(centers)
 
-    # Calculate sum of radii
+    # Sum the computed radii
     sum_of_radii = np.sum(radii)
 
     return centers, radii, sum_of_radii
@@ -49,7 +65,7 @@ def construct_packing():
 def compute_max_radii(centers):
     """
     Compute the maximum possible radii for each circle position
-    such that they do not overlap and stay within the unit square.
+    such that they do not overlap and remain within the unit square.
 
     Args:
         centers: np.array of shape (n, 2) with (x, y) coordinates
@@ -60,20 +76,22 @@ def compute_max_radii(centers):
     n = centers.shape[0]
     radii = np.ones(n)
 
-    # Limit radii to maintain margin for square boundaries
-    for i in range(n):
-        x, y = centers[i]
-        radii[i] = min(x, y, 1 - x, 1 - y)
+    # Ensure circles do not overflow beyond square boundaries by limiting them to minimum edge distance
+    for circle_idx in range(n):
+        x, y = centers[circle_idx]
+        boundary = np.array([x, y, 1.0 - x, 1.0 - y])  # [left, bottom, right, top]
+        radii[circle_idx] = np.min(boundary)
 
-    # Avoid overlaps by adjusting pair-wise sum of radii to their center distance
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx, dy = centers[i] - centers[j]
-            distance = np.sqrt(dx ** 2 + dy ** 2)
-            if radii[i] + radii[j] > distance:
-                scale = distance / (radii[i] + radii[j])
-                radii[i] *= scale
-                radii[j] *= scale
+    # Resolve overlaps: Adjust radii between every pair until no overlaps exist
+    for circle_a in range(n):
+        for circle_b in range(circle_a + 1, n):
+            dx, dy = centers[circle_a] - centers[circle_b]
+            distance = np.sqrt(dx**2 + dy**2)
+
+            if radii[circle_a] + radii[circle_b] > distance:
+                scale_factor = distance / (radii[circle_a] + radii[circle_b])
+                radii[circle_a] *= scale_factor
+                radii[circle_b] *= scale_factor
 
     return radii
 

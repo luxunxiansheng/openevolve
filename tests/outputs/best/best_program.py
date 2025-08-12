@@ -1,7 +1,9 @@
-# EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
-import numpy as np
 
+
+# EVOLVE-BLOCK-START
+"""Constructor-based circle packing for n=26 circles with enhanced performance"""
+
+import numpy as np
 
 def place_ring(centers, base_center, radius, start_idx, num_circles):
     """
@@ -69,25 +71,55 @@ def compute_max_radii(centers):
     Returns:
         np.array of shape (n) with radius of each circle
     """
+    # Step 1: Compute radii based on boundaries
+    radii = compute_boundary_constraints(centers)
+
+    # Step 2: Handle overlap constraints using optimized vectorization
+    radii = handle_overlap_constraints(centers, radii)
+
+    return radii
+
+
+def compute_boundary_constraints(centers):
+    """
+    Calculate the maximum radius each circle can have based solely on the square's boundaries.
+    This is the minimum distance to any of the square's edges.
+
+    Args:
+        centers: Array of circle centers of shape (n, 2)
+
+    Returns:
+        Array of boundary-limited radii of shape (n,)
+    """
+    return np.minimum(np.minimum(centers[:, 0], centers[:, 1]), np.minimum(1 - centers[:, 0], 1 - centers[:, 1]))
+
+
+def handle_overlap_constraints(centers, radii):
+    """
+    Adjusts the radii to prevent overlaps between circles using a distance matrix approach.
+    Each circle's radius is limited to half the minimal distance to any other circle,
+    using fully vectorized operations for efficiency.
+
+    Args:
+        centers: Numpy array of circle centers (n x 2)
+        radii: Numpy array of current radii for each circle (n-length)
+
+    Returns:
+        Numpy array of adjusted radii (n-length)
+    """
     n = centers.shape[0]
-    radii = np.ones(n)
+    # Compute pairwise distances between all circle centers
+    dist_matrix = np.linalg.norm(centers[:, np.newaxis, :] - centers[np.newaxis, :, :], axis=2)
 
-    # Limit radii to the minimum distance to any square boundary
-    for i in range(n):
-        x, y = centers[i]
-        radii[i] = min(x, y, 1 - x, 1 - y)
+    # Create a copy and set the diagonals to infinity to exclude self-distance
+    dist_without_diagonal = dist_matrix.copy()
+    np.fill_diagonal(dist_without_diagonal, np.inf)
 
-    # Limit radii to prevent overlap between any pairs of circles
-    for i in range(n):
-        for j in range(i + 1, n):
-            # Calculate Euclidean distance between centers
-            distance = np.linalg.norm(centers[i] - centers[j])
+    # Compute minimum distance to other circles for each circle
+    min_distances = np.min(dist_without_diagonal, axis=1)
 
-            # Scale both radii proportionally if the sum exceeds distance
-            if radii[i] + radii[j] > distance:
-                scale_factor = distance / (radii[i] + radii[j])
-                radii[i] *= scale_factor
-                radii[j] *= scale_factor
+    # Adjust radii to ensure r_i + r_j <= d_ij for all pairs (i,j)
+    radii = np.minimum(radii, min_distances / 2)
 
     return radii
 

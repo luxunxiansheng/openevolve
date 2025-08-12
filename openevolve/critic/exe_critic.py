@@ -68,7 +68,7 @@ class PythonExecutionCritic(Critic):
             raise TypeError("Both evolved_program_code and critic_program must be strings.")
 
         # Combine the evolved program code with the critic program as the job script
-        job_script = evolved_program_code + self.critic_program
+        job_script = evolved_program_code + "\n\n" + self.critic_program
 
         # Submit and monitor job
         with tempfile.TemporaryDirectory() as temp_dir:

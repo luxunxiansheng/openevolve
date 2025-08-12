@@ -196,6 +196,17 @@ class PromptSampler:
         """Identify potential areas for improvement"""
         improvement_areas = []
 
+        # Compare with parent program if available
+        if parent_program and parent_program != current_program:
+            if len(current_program) > len(parent_program) * 1.5:
+                improvement_areas.append(
+                    "Current program is significantly larger than parent - consider simplification"
+                )
+            elif len(current_program) < len(parent_program) * 0.5:
+                improvement_areas.append(
+                    "Current program is much smaller than parent - may be missing functionality"
+                )
+
         # Simple length check
         if self.code_length_threshold and len(current_program) > self.code_length_threshold:
             improvement_areas.append("Consider simplifying the code to improve readability")
@@ -236,16 +247,39 @@ class PromptSampler:
         )
 
         for i, program in enumerate(reversed(selected_previous)):
-            changes = program.get("changes", "Unknown changes")
             metrics = program.get("metrics", {})
             performance_str = ", ".join([f"{k}: {v}" for k, v in metrics.items()])
+
+            # Generate more meaningful changes description
+            program_code = program.get("code", "")
+            if program_code:
+                lines_count = len(program_code.split("\n"))
+                changes = f"Program with {lines_count} lines of code"
+            else:
+                changes = "Program evolution attempt"
+
+            # Determine outcome based on metrics
+            if metrics:
+                avg_score = sum(v for v in metrics.values() if isinstance(v, (int, float))) / len(
+                    [v for v in metrics.values() if isinstance(v, (int, float))]
+                )
+                if avg_score >= 0.8:
+                    outcome = "Strong performance"
+                elif avg_score >= 0.6:
+                    outcome = "Good performance"
+                elif avg_score >= 0.4:
+                    outcome = "Moderate performance"
+                else:
+                    outcome = "Needs improvement"
+            else:
+                outcome = "Performance unknown"
 
             previous_attempts_str += (
                 previous_attempt_template.format(
                     attempt_number=len(previous_programs) - i,
                     changes=changes,
                     performance=performance_str,
-                    outcome="Mixed results",
+                    outcome=outcome,
                 )
                 + "\n\n"
             )

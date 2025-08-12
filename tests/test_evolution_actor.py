@@ -45,11 +45,11 @@ class TestEvolutionActor(unittest.TestCase):
         )
 
         with open(evovle_program_path, "r") as file:
-            python_code = file.read()
+            evovled_python_code = file.read()
 
         parent_program = Program(
             id="parent1",
-            code=python_code,
+            code=evovled_python_code,
             language="python",
             parent_id=None,
             generation=0,

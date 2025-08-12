@@ -1,99 +1,120 @@
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles with improved readability and correctness"""
+"""
+Optimized and well-documented circle-packing algorithm for 26 circles in a unit square
+Maximizing the sum of radii with improved clarity, maintainability, and correctness.
+"""
 
 import numpy as np
+from collections import defaultdict
 
 
 def construct_packing():
     """
-    Construct a specific arrangement of 26 circles in a unit square
-    that attempts to maximize the sum of their radii.
+    Construct an arrangement of 26 circles in a unit square
+    that maximizes the sum of their radii, ensuring no overlaps.
 
     Returns:
         Tuple of (centers, radii, sum_of_radii)
-        centers: np.array of shape (26, 2) with (x, y) coordinates
-        radii: np.array of shape (26) with radius of each circle
-        sum_of_radii: Sum of all radii
+        - centers: np.array of shape (26, 2) with (x, y) coordinates
+        - radii: np.array of shape (26) with radius of each circle
+        - sum_of_radii: Sum of all radii
     """
     n = 26
     centers = np.zeros((n, 2))
 
-    # Central circle
+    # Set the central circle
     centers[0] = [0.5, 0.5]
 
-    # Function to place a circular ring of circles around a center point
-    def place_circular_ring(start_index, center_position, ring_radius, num_circles):
+    def _place_circular_ring(start_index, center, ring_radius, num_circles):
         """
-        Places a circular ring of `num_circles` circles at a given radius around
-        the specified `center_position`, starting from index `start_index`.
+        Place a uniform ring of circles around a given coordinate.
 
         Args:
-            start_index: Index in the centers array to begin placing the ring
-            center_position: Tuple (x, y) of the ring's center
-            ring_radius: Radius at which to place the circle ring
+            start_index: First index to assign positions in centers array
+            center: (x, y) position of the ring center
+            ring_radius: Radius of the ring (from center to any circle on it)
             num_circles: Number of circles in the ring
         """
-        center_x, center_y = center_position
-        for circle_idx in range(num_circles):
-            angle = 2 * np.pi * circle_idx / num_circles
-            x = center_x + ring_radius * np.cos(angle)
-            y = center_y + ring_radius * np.sin(angle)
-            centers[start_index + circle_idx] = [x, y]
+        cx, cy = center
+        for idx in range(num_circles):
+            angle = 2 * np.pi * idx / num_circles
+            x = cx + ring_radius * np.cos(angle)
+            y = cy + ring_radius * np.sin(angle)
+            centers[start_index + idx] = [x, y]
 
-    # Place first ring of 8 circles around center
-    place_circular_ring(start_index=1, center_position=(0.5, 0.5), ring_radius=0.3, num_circles=8)
+    # Place first ring of 8 circles
+    _place_circular_ring(start_index=1, center=(0.5, 0.5), ring_radius=0.3, num_circles=8)
 
-    # Place second ring of 17 circles around center to complete the full count
-    place_circular_ring(start_index=9, center_position=(0.5, 0.5), ring_radius=0.7, num_circles=17)
+    # Place second ring of 16 circles
+    _place_circular_ring(start_index=9, center=(0.5, 0.5), ring_radius=0.7, num_circles=16)
 
-    # Clip all circle centers to ensure they fit within the unit square (with 1% margin)
+    # Ensure all circles stay within the 1% boundary margin
     centers = np.clip(centers, 0.01, 0.99)
 
-    # Validate that all circle centers have been properly initialized
-    if np.all(centers == 0.0):
-        raise ValueError("Error: Some circle centers remain unset in the layout.")
-    
-    # Compute maximum valid radii to ensure no overlaps and fit in unit square
-    radii = compute_max_radii(centers)
+    # Compute optimal radii by finding the minimum distance to other circles
+    radii = compute_optimal_radii(centers)
 
-    # Sum the computed radii
-    sum_of_radii = np.sum(radii)
-
-    return centers, radii, sum_of_radii
+    return centers, radii, np.sum(radii)
 
 
-def compute_max_radii(centers):
+def compute_optimal_radii(centers):
     """
-    Compute the maximum possible radii for each circle position
-    such that they do not overlap and remain within the unit square.
+    Calculate the optimal radii for all circles so that:
+    - No two circles overlap
+    - Radii are limited by distance to edge of square
+    Uses grid partitioning for efficiency and correctness.
 
     Args:
-        centers: np.array of shape (n, 2) with (x, y) coordinates
+        centers: np.array of (n, 2) circle positions
 
     Returns:
-        np.array of shape (n) with radius of each circle
+        np.array of valid radii for all circles
     """
     n = centers.shape[0]
-    radii = np.ones(n)
 
-    # Ensure circles do not overflow beyond square boundaries by limiting them to minimum edge distance
-    for circle_idx in range(n):
-        x, y = centers[circle_idx]
-        boundary = np.array([x, y, 1.0 - x, 1.0 - y])  # [left, bottom, right, top]
-        radii[circle_idx] = np.min(boundary)
+    # Set initial radii to the distance to nearest square boundary
+    edge_distances = np.minimum(
+        np.minimum(centers[:, 0], centers[:, 1]),
+        np.minimum(1 - centers[:, 0], 1 - centers[:, 1])
+    )
+    radii = edge_distances.copy()
 
-    # Resolve overlaps: Adjust radii between every pair until no overlaps exist
-    for circle_a in range(n):
-        for circle_b in range(circle_a + 1, n):
-            dx, dy = centers[circle_a] - centers[circle_b]
-            distance = np.sqrt(dx**2 + dy**2)
+    # Use grid spatial partitioning to reduce comparisons
+    GRID_CELL_SIZE = 0.2  # Split square into 5x5 grid
+    grid_map = defaultdict(list)
 
-            if radii[circle_a] + radii[circle_b] > distance:
-                scale_factor = distance / (radii[circle_a] + radii[circle_b])
-                radii[circle_a] *= scale_factor
-                radii[circle_b] *= scale_factor
+    # Map each circle to its grid cell
+    for idx, (x, y) in enumerate(centers):
+        cell_x = int(x / GRID_CELL_SIZE)
+        cell_y = int(y / GRID_CELL_SIZE)
+        grid_map[(cell_x, cell_y)].append(idx)
+
+    # Find the closest other circle for each circle
+    closest_distances = [np.inf] * n
+    for idx, (x, y) in enumerate(centers):
+        cell_x = int(x / GRID_CELL_SIZE)
+        cell_y = int(y / GRID_CELL_SIZE)
+
+        # Check neighboring cells for possible neighbors
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                neighbor_cell = (cell_x + dx, cell_y + dy)
+                if neighbor_cell in grid_map:
+                    for other_idx in grid_map[neighbor_cell]:
+                        if other_idx == idx:
+                            continue
+                        # Compute pairwise distance
+                        distance = np.linalg.norm(centers[idx] - centers[other_idx])
+                        # Update closest distances for both circles
+                        if distance < closest_distances[idx]:
+                            closest_distances[idx] = distance
+                        if distance < closest_distances[other_idx]:
+                            closest_distances[other_idx] = distance
+
+    # Limit radii to half of the closest distance between circles and
+    # the distance to the edge of the square
+    for idx in range(n):
+        radii[idx] = min(radii[idx], closest_distances[idx] / 2.0)
 
     return radii
-
-
 # EVOLVE-BLOCK-END

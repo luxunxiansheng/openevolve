@@ -1,6 +1,7 @@
 """
 Prompt sampling for OpenEvolve
 """
+
 import logging
 import random
 from typing import Any, Dict, List, Optional, Union
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class PromptSampler:
-    """Generates prompts for code evolution"""
+    """Generates prompts for code evolution with configurable templates and formatting"""
 
     def __init__(
         self,
@@ -22,41 +23,58 @@ class PromptSampler:
         num_top_programs: int = 3,
         num_diverse_programs: int = 2,
         use_template_stochasticity: bool = True,
-        template_variations: Dict[str, List[str]] = {},
+        template_variations: Optional[Dict[str, List[str]]] = None,
         use_meta_prompting: bool = False,
         meta_prompt_weight: float = 0.1,
         include_artifacts: bool = True,
         max_artifact_bytes: int = 20 * 1024,
-        artifact_security_filter: bool = True,
-        suggest_simplification_after_chars: int = 500,
         include_changes_under_chars: int = 100,
         concise_implementation_max_lines: int = 10,
         comprehensive_implementation_min_lines: int = 50,
-        code_length_threshold: Optional[int] = None,
+        code_length_threshold: Optional[int] = 2048,
     ):
+        """
+        Initialize PromptSampler with configuration
+
+        Args:
+            template_dir: Directory containing templates
+            system_template_key: Key for system message template
+            num_top_programs: Number of top programs to include
+            num_diverse_programs: Number of diverse programs to include
+            use_template_stochasticity: Whether to apply template variations
+            template_variations: Dictionary of template variations
+            use_meta_prompting: Whether to use meta prompting
+            meta_prompt_weight: Weight for meta prompting
+            include_artifacts: Whether to include artifacts in prompts
+            max_artifact_bytes: Maximum bytes for artifacts
+            include_changes_under_chars: Include changes under this character limit
+            concise_implementation_max_lines: Max lines for concise implementation
+            comprehensive_implementation_min_lines: Min lines for comprehensive implementation
+            code_length_threshold: Threshold for code length warnings
+        """
+        # Core settings
         self.template_dir = template_dir
         self.system_template_key = system_template_key
+
+        # Configuration parameters
         self.num_top_programs = num_top_programs
         self.num_diverse_programs = num_diverse_programs
         self.use_template_stochasticity = use_template_stochasticity
-        self.template_variations = template_variations
+        self.template_variations = template_variations or {}
         self.use_meta_prompting = use_meta_prompting
         self.meta_prompt_weight = meta_prompt_weight
         self.include_artifacts = include_artifacts
         self.max_artifact_bytes = max_artifact_bytes
-        self.artifact_security_filter = artifact_security_filter
-        self.suggest_simplification_after_chars = suggest_simplification_after_chars
         self.include_changes_under_chars = include_changes_under_chars
         self.concise_implementation_max_lines = concise_implementation_max_lines
         self.comprehensive_implementation_min_lines = comprehensive_implementation_min_lines
         self.code_length_threshold = code_length_threshold
 
+        # Initialize components
         self.template_manager = TemplateManager(template_dir)
-        random.seed()
 
-        if not hasattr(logger, "_prompt_sampler_logged"):
-            logger.info("Initialized prompt sampler")
-            logger._prompt_sampler_logged = True
+        # Setup
+        random.seed()
 
     def build_prompt(
         self,
@@ -66,7 +84,7 @@ class PromptSampler:
         program_metrics: Dict[str, float] = {},
         previous_programs: List[Dict[str, Any]] = [],
         top_programs: List[Dict[str, Any]] = [],
-        inspirations: List[Dict[str, Any]] = [],  # Add inspirations parameter
+        inspirations: List[Dict[str, Any]] = [],
         language: str = "python",
         program_artifacts: Optional[Dict[str, Union[str, bytes]]] = None,
         **kwargs: Any,
@@ -75,6 +93,7 @@ class PromptSampler:
         Build a prompt for the LLM
 
         Args:
+            user_template_key: Template key for the user message
             current_program: Current program code
             parent_program: Parent program from which current was derived
             program_metrics: Dictionary of metric names to values
@@ -82,50 +101,45 @@ class PromptSampler:
             top_programs: List of top-performing programs (best by fitness)
             inspirations: List of inspiration programs (diverse/creative examples)
             language: Programming language
-            evolution_round: Current evolution round
-            user_template_key: Optional override for template key
             program_artifacts: Optional artifacts from program evaluation
             **kwargs: Additional keys to replace in the user prompt
 
         Returns:
             Dictionary with 'system' and 'user' keys
         """
-
-
-        # Get the template
+        # Validate and get templates
         user_template = self.template_manager.get_template(user_template_key)
         system_message = self.template_manager.get_template(self.system_template_key)
 
-        # Format metrics
-        metrics_str = self._format_metrics(program_metrics)
+        # Fallback to minimal prompt if templates are missing
+        if not user_template or not system_message:
+            logger.warning(
+                f"Missing templates: user='{user_template_key}', system='{self.system_template_key}'. Using fallback."
+            )
+            return {
+                "system": "You are a helpful coding assistant.",
+                "user": f"Please help improve this {language} code:\n\n{current_program}",
+            }
 
-        # Identify areas for improvement
-        improvement_areas = self._identify_improvement_areas(
-            current_program, parent_program, program_metrics, previous_programs
+        # Build prompt components with safe defaults
+        components = self._build_prompt_components(
+            current_program=current_program,
+            parent_program=parent_program,
+            program_metrics=program_metrics or {},
+            previous_programs=previous_programs or [],
+            top_programs=top_programs or [],
+            inspirations=inspirations or [],
+            language=language,
+            program_artifacts=program_artifacts,
         )
 
-        # Format evolution history
-        evolution_history = self._format_evolution_history(
-            previous_programs, top_programs, inspirations, language
-        )
-
-        # Format artifacts section if enabled and available
-        artifacts_section = ""
-        if self.include_artifacts and program_artifacts:
-            artifacts_section = self._render_artifacts(program_artifacts)
-
-        # Apply stochastic template variations if enabled
+        # Apply stochastic variations if enabled
         if self.use_template_stochasticity:
             user_template = self._apply_template_variations(user_template)
 
         # Format the final user message
         user_message = user_template.format(
-            metrics=metrics_str,
-            improvement_areas=improvement_areas,
-            evolution_history=evolution_history,
-            current_program=current_program,
-            language=language,
-            artifacts=artifacts_section,
+            **components,
             **kwargs,
         )
 
@@ -134,19 +148,43 @@ class PromptSampler:
             "user": user_message,
         }
 
+    def _build_prompt_components(
+        self,
+        current_program: str,
+        parent_program: str,
+        program_metrics: Dict[str, float],
+        previous_programs: List[Dict[str, Any]],
+        top_programs: List[Dict[str, Any]],
+        inspirations: List[Dict[str, Any]],
+        language: str,
+        program_artifacts: Optional[Dict[str, Union[str, bytes]]],
+    ) -> Dict[str, str]:
+        """Build all prompt components"""
+
+        metrics_str = self._format_metrics(program_metrics)
+        improvement_areas = self._identify_improvement_areas(
+            current_program, parent_program, program_metrics, previous_programs
+        )
+        evolution_history = self._format_evolution_history(
+            previous_programs, top_programs, inspirations, language
+        )
+
+        artifacts_section = ""
+        if self.include_artifacts and program_artifacts:
+            artifacts_section = self._render_artifacts(program_artifacts)
+
+        return {
+            "metrics": metrics_str,
+            "improvement_areas": improvement_areas,
+            "evolution_history": evolution_history,
+            "current_program": current_program,
+            "language": language,
+            "artifacts": artifacts_section,
+        }
+
     def _format_metrics(self, metrics: Dict[str, float]) -> str:
-        """Format metrics for the prompt using safe formatting"""
-        # Use safe formatting to handle mixed numeric and string values
-        formatted_parts = []
-        for name, value in metrics.items():
-            if isinstance(value, (int, float)):
-                try:
-                    formatted_parts.append(f"- {name}: {value:.4f}")
-                except (ValueError, TypeError):
-                    formatted_parts.append(f"- {name}: {value}")
-            else:
-                formatted_parts.append(f"- {name}: {value}")
-        return "\n".join(formatted_parts)
+        """Format metrics for display"""
+        return "\n".join([f"- {key}: {value}" for key, value in metrics.items()])
 
     def _identify_improvement_areas(
         self,
@@ -156,68 +194,26 @@ class PromptSampler:
         previous_programs: List[Dict[str, Any]],
     ) -> str:
         """Identify potential areas for improvement"""
-        # This method could be expanded to include more sophisticated analysis
-        # For now, we'll use a simple approach
-
         improvement_areas = []
 
-        # Check program length
-        # Support both old and new parameter names for backward compatibility
-        threshold = self.suggest_simplification_after_chars or self.code_length_threshold
-        if threshold and len(current_program) > threshold:
-            improvement_areas.append(
-                "Consider simplifying the code to improve readability and maintainability"
-            )
+        # Simple length check
+        if self.code_length_threshold and len(current_program) > self.code_length_threshold:
+            improvement_areas.append("Consider simplifying the code to improve readability")
 
-        # Check for performance patterns in previous attempts
+        # Simple metric trend check
         if len(previous_programs) >= 2:
-            recent_attempts = previous_programs[-2:]
-            metrics_improved = []
-            metrics_regressed = []
+            recent_programs = previous_programs[-2:]
+            for metric_name, current_value in metrics.items():
+                if isinstance(current_value, (int, float)):
+                    for program in recent_programs:
+                        recent_value = program.get("metrics", {}).get(metric_name)
+                        if isinstance(recent_value, (int, float)) and current_value < recent_value:
+                            improvement_areas.append(f"Focus on improving {metric_name}")
+                            break
 
-            for metric, value in metrics.items():
-                # Only compare numeric metrics
-                if not isinstance(value, (int, float)) or isinstance(value, bool):
-                    continue
-
-                improved = True
-                regressed = True
-
-                for attempt in recent_attempts:
-                    attempt_value = attempt["metrics"].get(metric, 0)
-                    # Only compare if both values are numeric
-                    if isinstance(value, (int, float)) and isinstance(attempt_value, (int, float)):
-                        if attempt_value <= value:
-                            regressed = False
-                        if attempt_value >= value:
-                            improved = False
-                    else:
-                        # If either value is non-numeric, skip comparison
-                        improved = False
-                        regressed = False
-
-                if improved and metric not in metrics_improved:
-                    metrics_improved.append(metric)
-                if regressed and metric not in metrics_regressed:
-                    metrics_regressed.append(metric)
-
-            if metrics_improved:
-                improvement_areas.append(
-                    f"Metrics showing improvement: {', '.join(metrics_improved)}. "
-                    "Consider continuing with similar changes."
-                )
-
-            if metrics_regressed:
-                improvement_areas.append(
-                    f"Metrics showing regression: {', '.join(metrics_regressed)}. "
-                    "Consider reverting or revising recent changes in these areas."
-                )
-
-        # If we don't have specific improvements to suggest
+        # Default if no areas found
         if not improvement_areas:
-            improvement_areas.append(
-                "Focus on optimizing the code for better performance on the target metrics"
-            )
+            improvement_areas.append("Focus on optimizing the code for better performance")
 
         return "\n".join([f"- {area}" for area in improvement_areas])
 
@@ -229,99 +225,38 @@ class PromptSampler:
         language: str,
     ) -> str:
         """Format the evolution history for the prompt"""
-        # Get templates
         history_template = self.template_manager.get_template(Templates.EVOLUTION_HISTORY)
         previous_attempt_template = self.template_manager.get_template(Templates.PREVIOUS_ATTEMPT)
         top_program_template = self.template_manager.get_template(Templates.TOP_PROGRAM)
 
-        # Format previous attempts (most recent first)
+        # Format previous attempts
         previous_attempts_str = ""
-        selected_previous = previous_programs[-min(3, len(previous_programs)) :]
+        selected_previous = (
+            previous_programs[-3:] if len(previous_programs) > 3 else previous_programs
+        )
 
         for i, program in enumerate(reversed(selected_previous)):
-            attempt_number = len(previous_programs) - i
             changes = program.get("changes", "Unknown changes")
-
-            # Format performance metrics using safe formatting
-            performance_parts = []
-            for name, value in program.get("metrics", {}).items():
-                if isinstance(value, (int, float)):
-                    try:
-                        performance_parts.append(f"{name}: {value:.4f}")
-                    except (ValueError, TypeError):
-                        performance_parts.append(f"{name}: {value}")
-                else:
-                    performance_parts.append(f"{name}: {value}")
-            performance_str = ", ".join(performance_parts)
-
-            # Determine outcome based on comparison with parent (only numeric metrics)
-            parent_metrics = program.get("parent_metrics", {})
-            outcome = "Mixed results"
-
-            # Safely compare only numeric metrics
-            program_metrics = program.get("metrics", {})
-
-            # Check if all numeric metrics improved
-            numeric_comparisons_improved = []
-            numeric_comparisons_regressed = []
-
-            for m in program_metrics:
-                prog_value = program_metrics.get(m, 0)
-                parent_value = parent_metrics.get(m, 0)
-
-                # Only compare if both values are numeric
-                if isinstance(prog_value, (int, float)) and isinstance(parent_value, (int, float)):
-                    if prog_value > parent_value:
-                        numeric_comparisons_improved.append(True)
-                    else:
-                        numeric_comparisons_improved.append(False)
-
-                    if prog_value < parent_value:
-                        numeric_comparisons_regressed.append(True)
-                    else:
-                        numeric_comparisons_regressed.append(False)
-
-            # Determine outcome based on numeric comparisons
-            if numeric_comparisons_improved and all(numeric_comparisons_improved):
-                outcome = "Improvement in all metrics"
-            elif numeric_comparisons_regressed and all(numeric_comparisons_regressed):
-                outcome = "Regression in all metrics"
+            metrics = program.get("metrics", {})
+            performance_str = ", ".join([f"{k}: {v}" for k, v in metrics.items()])
 
             previous_attempts_str += (
                 previous_attempt_template.format(
-                    attempt_number=attempt_number,
+                    attempt_number=len(previous_programs) - i,
                     changes=changes,
                     performance=performance_str,
-                    outcome=outcome,
+                    outcome="Mixed results",
                 )
                 + "\n\n"
             )
 
         # Format top programs
         top_programs_str = ""
-        selected_top = top_programs[: min(self.num_top_programs, len(top_programs))]
+        selected_top = top_programs[: self.num_top_programs]
 
         for i, program in enumerate(selected_top):
-            # Use the full program code
             program_code = program.get("code", "")
-
-            # Calculate a composite score using safe numeric average
             score = safe_numeric_average(program.get("metrics", {}))
-
-            # Extract key features (this could be more sophisticated)
-            key_features = program.get("key_features", [])
-            if not key_features:
-                key_features = []
-                for name, value in program.get("metrics", {}).items():
-                    if isinstance(value, (int, float)):
-                        try:
-                            key_features.append(f"Performs well on {name} ({value:.4f})")
-                        except (ValueError, TypeError):
-                            key_features.append(f"Performs well on {name} ({value})")
-                    else:
-                        key_features.append(f"Performs well on {name} ({value})")
-
-            key_features_str = ", ".join(key_features)
 
             top_programs_str += (
                 top_program_template.format(
@@ -329,85 +264,27 @@ class PromptSampler:
                     score=f"{score:.4f}",
                     language=language,
                     program_snippet=program_code,
-                    key_features=key_features_str,
+                    key_features="Performance optimized",
                 )
                 + "\n\n"
             )
 
-        # Format diverse programs using num_diverse_programs config
-        diverse_programs_str = ""
-        if self.num_diverse_programs > 0 and len(top_programs) > self.num_top_programs:
-            # Skip the top programs we already included
-            remaining_programs = top_programs[self.num_top_programs :]
-
-            # Sample diverse programs from the remaining
-            num_diverse = min(self.num_diverse_programs, len(remaining_programs))
-            if num_diverse > 0:
-                # Use random sampling to get diverse programs
-                diverse_programs = random.sample(remaining_programs, num_diverse)
-
-                diverse_programs_str += "\n\n## Diverse Programs\n\n"
-
-                for i, program in enumerate(diverse_programs):
-                    # Use the full program code
-                    program_code = program.get("code", "")
-
-                    # Calculate a composite score using safe numeric average
-                    score = safe_numeric_average(program.get("metrics", {}))
-
-                    # Extract key features
-                    key_features = program.get("key_features", [])
-                    if not key_features:
-                        key_features = [
-                            f"Alternative approach to {name}"
-                            for name in list(program.get("metrics", {}).keys())[
-                                :2
-                            ]  # Just first 2 metrics
-                        ]
-
-                    key_features_str = ", ".join(key_features)
-
-                    diverse_programs_str += (
-                        top_program_template.format(
-                            program_number=f"D{i + 1}",
-                            score=f"{score:.4f}",
-                            language=language,
-                            program_snippet=program_code,
-                            key_features=key_features_str,
-                        )
-                        + "\n\n"
-                    )
-
-        # Combine top and diverse programs
-        combined_programs_str = top_programs_str + diverse_programs_str
-
-        # Format inspirations section
+        # Format inspirations
         inspirations_section_str = self._format_inspirations_section(inspirations, language)
 
-        # Combine into full history
         return history_template.format(
             previous_attempts=previous_attempts_str.strip(),
-            top_programs=combined_programs_str.strip(),
+            top_programs=top_programs_str.strip(),
             inspirations_section=inspirations_section_str,
         )
 
     def _format_inspirations_section(
         self, inspirations: List[Dict[str, Any]], language: str
     ) -> str:
-        """
-        Format the inspirations section for the prompt
-
-        Args:
-            inspirations: List of inspiration programs
-            language: Programming language
-
-        Returns:
-            Formatted inspirations section string
-        """
+        """Format the inspirations section for the prompt"""
         if not inspirations:
             return ""
 
-        # Get templates
         inspirations_section_template = self.template_manager.get_template(
             Templates.INSPIRATIONS_SECTION
         )
@@ -418,26 +295,17 @@ class PromptSampler:
         inspiration_programs_str = ""
 
         for i, program in enumerate(inspirations):
-            # Use the full program code
             program_code = program.get("code", "")
-
-            # Calculate a composite score using safe numeric average
             score = safe_numeric_average(program.get("metrics", {}))
-
-            # Determine program type based on metadata and score
-            program_type = self._determine_program_type(program)
-
-            # Extract unique features (emphasizing diversity rather than just performance)
-            unique_features = self._extract_unique_features(program)
 
             inspiration_programs_str += (
                 inspiration_program_template.format(
                     program_number=i + 1,
                     score=f"{score:.4f}",
-                    program_type=program_type,
+                    program_type="Alternative",
                     language=language,
                     program_snippet=program_code,
-                    unique_features=unique_features,
+                    unique_features="Different approach",
                 )
                 + "\n\n"
             )
@@ -446,134 +314,27 @@ class PromptSampler:
             inspiration_programs=inspiration_programs_str.strip()
         )
 
-    def _determine_program_type(self, program: Dict[str, Any]) -> str:
-        """
-        Determine the type/category of an inspiration program
-
-        Args:
-            program: Program dictionary
-
-        Returns:
-            String describing the program type
-        """
-        metadata = program.get("metadata", {})
-        score = safe_numeric_average(program.get("metrics", {}))
-
-        # Check metadata for explicit type markers
-        if metadata.get("diverse", False):
-            return "Diverse"
-        if metadata.get("migrant", False):
-            return "Migrant"
-        if metadata.get("random", False):
-            return "Random"
-
-        # Classify based on score ranges
-        if score >= 0.8:
-            return "High-Performer"
-        elif score >= 0.6:
-            return "Alternative"
-        elif score >= 0.4:
-            return "Experimental"
-        else:
-            return "Exploratory"
-
-    def _extract_unique_features(self, program: Dict[str, Any]) -> str:
-        """
-        Extract unique features of an inspiration program
-
-        Args:
-            program: Program dictionary
-
-        Returns:
-            String describing unique aspects of the program
-        """
-        features = []
-
-        # Extract from metadata if available
-        metadata = program.get("metadata", {})
-        if "changes" in metadata:
-            changes = metadata["changes"]
-            if (
-                isinstance(changes, str)
-                and self.include_changes_under_chars
-                and len(changes) < self.include_changes_under_chars
-            ):
-                features.append(f"Modification: {changes}")
-
-        # Analyze metrics for standout characteristics
-        metrics = program.get("metrics", {})
-        for metric_name, value in metrics.items():
-            if isinstance(value, (int, float)):
-                if value >= 0.9:
-                    features.append(f"Excellent {metric_name} ({value:.3f})")
-                elif value <= 0.3:
-                    features.append(f"Alternative {metric_name} approach")
-
-        # Code-based features (simple heuristics)
-        code = program.get("code", "")
-        if code:
-            code_lower = code.lower()
-            if "class" in code_lower and "def __init__" in code_lower:
-                features.append("Object-oriented approach")
-            if "numpy" in code_lower or "np." in code_lower:
-                features.append("NumPy-based implementation")
-            if "for" in code_lower and "while" in code_lower:
-                features.append("Mixed iteration strategies")
-            if (
-                self.concise_implementation_max_lines
-                and len(code.split("\n")) <= self.concise_implementation_max_lines
-            ):
-                features.append("Concise implementation")
-            elif (
-                self.comprehensive_implementation_min_lines
-                and len(code.split("\n")) >= self.comprehensive_implementation_min_lines
-            ):
-                features.append("Comprehensive implementation")
-
-        # Default if no specific features found
-        if not features:
-            program_type = self._determine_program_type(program)
-            features.append(f"{program_type} approach to the problem")
-
-        # Use num_top_programs as limit for features (similar to how we limit programs)
-        feature_limit = self.num_top_programs
-        return ", ".join(features[:feature_limit])
-
     def _apply_template_variations(self, template: str) -> str:
         """Apply stochastic variations to the template"""
         result = template
-
-        # Apply variations defined in the config
         for key, variations in self.template_variations.items():
             if variations and f"{{{key}}}" in result:
-                chosen_variation = random.choice(variations)
-                result = result.replace(f"{{{key}}}", chosen_variation)
-
+                result = result.replace(f"{{{key}}}", random.choice(variations))
         return result
 
     def _render_artifacts(self, artifacts: Dict[str, Union[str, bytes]]) -> str:
-        """
-        Render artifacts for prompt inclusion
-
-        Args:
-            artifacts: Dictionary of artifact name to content
-
-        Returns:
-            Formatted string for prompt inclusion (empty string if no artifacts)
-        """
+        """Render artifacts for prompt inclusion"""
         if not artifacts:
             return ""
 
         sections = []
-
-        # Process all artifacts using .items()
         for key, value in artifacts.items():
             content = self._safe_decode_artifact(value)
-            # Truncate if too long
             if len(content) > self.max_artifact_bytes:
                 content = content[: self.max_artifact_bytes] + "\n... (truncated)"
-
             sections.append(f"### {key}\n```\n{content}\n```")
+
+        return "## Last Execution Output\n\n" + "\n\n".join(sections)
 
         if sections:
             return "## Last Execution Output\n\n" + "\n\n".join(sections)
@@ -581,56 +342,10 @@ class PromptSampler:
             return ""
 
     def _safe_decode_artifact(self, value: Union[str, bytes]) -> str:
-        """
-        Safely decode an artifact value to string
-
-        Args:
-            value: Artifact value (string or bytes)
-
-        Returns:
-            String representation of the value
-        """
+        """Safely decode an artifact value to string"""
         if isinstance(value, str):
-            # Apply security filter if enabled
-            if self.artifact_security_filter:
-                return self._apply_security_filter(value)
             return value
         elif isinstance(value, bytes):
-            try:
-                decoded = value.decode("utf-8", errors="replace")
-                if self.artifact_security_filter:
-                    return self._apply_security_filter(decoded)
-                return decoded
-            except Exception:
-                return f"<binary data: {len(value)} bytes>"
+            return value.decode("utf-8", errors="replace")
         else:
             return str(value)
-
-    def _apply_security_filter(self, text: str) -> str:
-        """
-        Apply security filtering to artifact text
-
-        Args:
-            text: Input text
-
-        Returns:
-            Filtered text with potential secrets/sensitive info removed
-        """
-        import re
-
-        # Remove ANSI escape sequences
-        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        filtered = ansi_escape.sub("", text)
-
-        # Basic patterns for common secrets (can be expanded)
-        secret_patterns = [
-            (r"[A-Za-z0-9]{32,}", "<REDACTED_TOKEN>"),  # Long alphanumeric tokens
-            (r"sk-[A-Za-z0-9]{48}", "<REDACTED_API_KEY>"),  # OpenAI-style API keys
-            (r"password[=:]\s*[^\s]+", "password=<REDACTED>"),  # Password assignments
-            (r"token[=:]\s*[^\s]+", "token=<REDACTED>"),  # Token assignments
-        ]
-
-        for pattern, replacement in secret_patterns:
-            filtered = re.sub(pattern, replacement, filtered, flags=re.IGNORECASE)
-
-        return filtered

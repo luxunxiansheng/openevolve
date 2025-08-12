@@ -129,7 +129,6 @@ class Orchestrator:
                     )
 
 
-
                 # Island management
                 if (
                     current_iteration > start_iteration

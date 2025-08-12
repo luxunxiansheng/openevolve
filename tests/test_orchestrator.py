@@ -11,7 +11,7 @@ evoved_program_path = "/workspaces/openevolve/examples/circle_packing_with_artif
 output_path = "/workspaces/openevolve/tests/outputs"
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):

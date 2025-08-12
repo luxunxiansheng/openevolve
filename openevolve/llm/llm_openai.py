@@ -21,7 +21,7 @@ class OpenAILLM(LLMInterface):
         self,
         system_message: Optional[str] = "You are a helpful assistant.",
         name: str = "Qwen3-14B-AWQ",
-        temperature: float = 0.6,
+        temperature: float = 1.5,
         top_p: float = 0.95,
         max_tokens: int = 20480,
         timeout: int = 120,

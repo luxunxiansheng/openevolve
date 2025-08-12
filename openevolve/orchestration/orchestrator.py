@@ -30,7 +30,7 @@ class Orchestrator:
         evoved_program_path,
         output_dir: str,
         # Orchestrator config fields
-        max_iterations: int = 100,
+        max_iterations: int = 1000,
         target_score: float = 1.0,
         file_extension: str = ".py",
         language: str = "python",

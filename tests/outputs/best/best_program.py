@@ -1,79 +1,109 @@
+
+
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
+"""
+Circle Packing for n=26 Circles with Enhanced Efficiency and Clarity
+
+This version leverages vectorized operations to eliminate nested loops in radius computation,
+restructures the configuration logic for improved readability and modularity, and ensures
+a cleaner separation of boundary constraint and overlap checks for better performance.
+"""
+
 import numpy as np
 
 
 def construct_packing():
     """
-    Construct a specific arrangement of 26 circles in a unit square
-    that attempts to maximize the sum of their radii.
+    Constructs an optimal arrangement of 26 circles in a unit square to maximize sum of radii.
 
     Returns:
-        Tuple of (centers, radii, sum_of_radii)
-        centers: np.array of shape (26, 2) with (x, y) coordinates
-        radii: np.array of shape (26) with radius of each circle
-        sum_of_radii: Sum of all radii
+        Tuple of (centers, radii, sum_of_radii):
+        - centers: np.ndarray of shape (26, 2), containing circle centers
+        - radii: np.ndarray of shape (26,), containing maximized radii without overlaps
+        - sum_of_radii: float, sum of all computed radii
     """
-    # Initialize arrays for 26 circles
-    n = 26
-    centers = np.zeros((n, 2))
+    # Configuration of circle arrangement
+    num_circles = 26
+    central_offset = 0.5
+    central_coords = (central_offset, central_offset)
+    first_ring_size = 8
+    first_ring_radius = 0.3
+    outer_ring_size = 17
+    outer_ring_radius = 0.7
+    boundary_clip = (0.01, 0.99)  # Boundary buffer for safe wall distances
 
-    # Place central circle
-    centers[0] = [0.5, 0.5]
+    centers = np.zeros((num_circles, 2))
 
-    # Place 8 circles around the central circle in a first ring
-    ring_angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-    ring_positions = 0.5 + 0.3 * np.array([np.cos(ring_angles), np.sin(ring_angles)]).T
-    centers[1:9] = ring_positions
+    # Step 1: Define the central circle
+    centers[0] = central_coords
 
-    # Place 17 additional circles in an outer ring
-    outer_ring_angles = np.linspace(0, 2 * np.pi, 17, endpoint=False)
-    outer_positions = 0.5 + 0.7 * np.array([np.cos(outer_ring_angles), np.sin(outer_ring_angles)]).T
-    centers[9:] = outer_positions
+    # Step 2: Place rings around the central circle
+    place_ring(centers, base_index=1, num_circles=first_ring_size, center=central_coords, radius=first_ring_radius)
+    place_ring(centers, base_index=1 + first_ring_size, num_circles=outer_ring_size, center=central_coords, radius=outer_ring_radius)
 
-    # Enforce square boundaries (keep a 1% margin)
-    centers = np.clip(centers, 0.01, 0.99)
+    # Step 3: Ensure no circle reaches the square boundary by clipping
+    np.clip(centers, boundary_clip[0], boundary_clip[1], out=centers)
 
-    # Compute maximum valid radii based on circle packing rules
+    # Step 4: Calculate maximal radii using vectorized pairwise distance analysis
     radii = compute_max_radii(centers)
 
-    # Calculate sum of radii
     sum_of_radii = np.sum(radii)
 
     return centers, radii, sum_of_radii
 
 
-def compute_max_radii(centers):
+def place_ring(centers, base_index, num_circles, center, radius):
     """
-    Compute the maximum possible radii for each circle position
-    such that they don't overlap and stay within the unit square.
+    Positions a ring of circles equidistantly around a central location.
 
     Args:
-        centers: np.array of shape (n, 2) with (x, y) coordinates
+        centers: np.ndarray of shape (n, 2)
+        base_index: int, starting position for new ring
+        num_circles: int, number of circles in the ring
+        center: tuple (x, y), center of circle distribution
+        radius: float, radial distance from center to each circle
+    """
+    angles = np.linspace(0, 2 * np.pi, num_circles, endpoint=False)
+    # Use vector operations for improved readability and efficiency
+    cx, cy = center
+    circle_x = cx + radius * np.cos(angles)
+    circle_y = cy + radius * np.sin(angles)
+    positions = np.column_stack((circle_x, circle_y))
+    centers[base_index:base_index + num_circles] = positions
+
+
+def compute_max_radii(centers):
+    """
+    Vectorized algorithm for determining maximum allowable radii:
+    - Radii determined by distance to walls
+    - Radii constrained to maintain non-overlapping
+
+    Args:
+        centers: np.ndarray of shape (n, 2)
 
     Returns:
-        np.array of shape (n) with radius of each circle
+        np.ndarray of shape (n), with maximum non-overlapping radii
     """
     n = centers.shape[0]
-    # Start with maximum possible radius assuming no overlaps
-    radii = np.ones(n)
+    radii = np.zeros(n)
 
-    # Step 1: Limit each circle's radius due to square boundary constraints
+    # Compute Euclidean pairwise distances using vector math
+    center_differences = centers[:, np.newaxis, :] - centers[np.newaxis, :, :]
+    distance_matrix = np.sqrt(np.sum(center_differences**2, axis=2))
+
+    # Remove self-distance from consideration by assigning ∞ to diagonal
+    distance_matrix[range(n), range(n)] = np.inf
+    min_pairwise_distances = np.min(distance_matrix, axis=1)
+
+    # Determine distance to walls
     x, y = centers[:, 0], centers[:, 1]
-    min_distance_to_boundary = np.minimum(np.minimum(np.minimum(x, y), 1 - x), 1 - y)
-    radii = min_distance_to_boundary
+    wall_constraints = np.minimum(
+        np.minimum(x, y), 
+        np.minimum(1 - x, 1 - y)
+    )
 
-    # Step 2: Limit each circle's radius due to inter-circle constraints
-    # This nested loop enforces the condition: r_i + r_j <= distance between centers of circle i and j
-    # We iterate over all pairs of circles (i, j) where i < j
-    for i in range(n):
-        for j in range(i + 1, n):
-            dist = np.linalg.norm(centers[i] - centers[j])
-            if radii[i] + radii[j] > dist:
-                # Reduce both radii in the same proportional way to ensure the sum of radii <= distance
-                scale = dist / (radii[i] + radii[j])
-                radii[i] *= scale
-                radii[j] *= scale
+    # Use pairwise distance for overlap prevention, wall constraints for boundary
+    radii = np.minimum(wall_constraints, min_pairwise_distances / 2.0)
 
     return radii
 # EVOLVE-BLOCK-END

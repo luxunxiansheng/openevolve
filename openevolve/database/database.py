@@ -109,7 +109,7 @@ class ProgramDatabase:
         feature_dimensions: Optional[List[str]] = None,
         feature_bins: Union[int, Dict[str, int]] = 10,
         diversity_reference_size: int = 20,
-        migration_interval: int = 10,
+        migration_interval: int = 20,
         migration_rate: float = 0.6,
         random_seed: Optional[int] = 42,
         artifacts_base_path: Optional[str] = None,

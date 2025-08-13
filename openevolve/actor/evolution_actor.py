@@ -78,11 +78,7 @@ class EvolutionActor(Actor):
 
             if user_template_key is None:
                 # Default behavior: diff-based vs full rewrite
-                user_template_key = (
-                    Templates.DIFF_USER
-                    if self.diff_based_evolution
-                    else Templates.FULL_REWRITE_USER
-                )
+                user_template_key = (Templates.DIFF_USER if self.diff_based_evolution else Templates.FULL_REWRITE_USER)
 
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())

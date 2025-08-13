@@ -35,7 +35,8 @@ _BASE_SYSTEM_MESSAGE = "You are a helpful assistant designed to assist with code
 
 _ACTOR_SYSTEM_MESSAGE = """You are an expert software developer tasked with iteratively improving a codebase.
 Your job is to analyze the current program and suggest improvements based on feedback from previous attempts.
-Focus on making targeted changes that will increase the program's performance metrics."""
+Focus on making targeted changes that will increase the program's performance metrics.You need more creative 
+and diverse solutions to improve the performance of the program."""
 
 _CRITIC_SYSTEM_MESSAGE = """You are an expert code reviewer.
 Your job is to analyze the provided code and evaluate it systematically."""

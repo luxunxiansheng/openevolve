@@ -5,7 +5,7 @@ A stateless gymnasium environment that acts as a proxy for LLM-based program evo
 Combines generic evolution instructions with specific action-provided instructions.
 """
 
-from typing import Any, Dict, Optional, Callable, Union
+from typing import Any, Dict, Optional, Callable
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -52,15 +52,11 @@ class ProgramEvolutionEnv(gym.Env):
         self.prompt_builder = PromptBuilder(language)
         self.code_generator = CodeGenerator(llm, language, max_code_length)
 
-        # Action space supports structured actions
+        # Action space expects EvolutionAction objects only
+        # This is just for gym compatibility - actual validation is done in step()
         self.action_space = spaces.Dict(
             {
                 "instruction": spaces.Text(max_length=10000),
-                "current_program": spaces.Text(max_length=50000),
-                "current_score": spaces.Box(low=-np.inf, high=np.inf, shape=(), dtype=np.float32),
-                "parent_program": spaces.Text(max_length=50000),
-                "previous_attempts": spaces.Text(max_length=10000),
-                "context": spaces.Text(max_length=10000),
                 "mode": spaces.Text(max_length=20),
             }
         )
@@ -91,25 +87,26 @@ class ProgramEvolutionEnv(gym.Env):
         info = {"episode": self.episode_count}
         return obs, info
 
-    def step(self, action: Union[str, Dict[str, Any], EvolutionAction]):
+    def step(self, action: EvolutionAction):
         """
         Execute one step: process action, build prompts, generate and evaluate code
 
         Args:
-            action: Evolution action in various formats (string, dict, or EvolutionAction)
+            action: Evolution action (must be EvolutionAction object)
 
         Returns:
             Tuple of (observation, reward, terminated, truncated, info)
         """
         self.total_steps += 1
 
-        # Process action
-        evolution_action = self._process_action(action)
-        if evolution_action is None:
-            return self._error_response("Invalid action provided")
+        # Validate action type
+        if not isinstance(action, EvolutionAction):
+            return self._error_response(
+                f"Invalid action type: {type(action)}. Must be EvolutionAction."
+            )
 
         # Build prompts
-        prompts = self._build_prompts(evolution_action)
+        prompts = self._build_prompts(action)
         if prompts is None:
             return self._error_response("Failed to build prompts")
 
@@ -131,7 +128,7 @@ class ProgramEvolutionEnv(gym.Env):
 
         # Build response
         return self._build_response(
-            evolution_action=evolution_action,
+            evolution_action=action,
             new_program=new_program,
             metrics=metrics,
             system_prompt=system_prompt,
@@ -139,18 +136,6 @@ class ProgramEvolutionEnv(gym.Env):
             generation_success=True,
             evaluation_success=True,
         )
-
-    def _parse_action(self, action: Union[str, Dict[str, Any], EvolutionAction]) -> EvolutionAction:
-        """Parse different action formats into EvolutionAction"""
-        if isinstance(action, EvolutionAction):
-            return action
-        elif isinstance(action, dict):
-            return EvolutionAction.from_dict(action)
-        elif isinstance(action, str):
-            # Fallback: treat string as instruction
-            return EvolutionAction(instruction=action, mode=self.default_mode)
-        else:
-            raise ValueError(f"Unsupported action type: {type(action)}")
 
     def _error_response(self, error_msg: str, program: str = ""):
         """Create error response"""
@@ -167,20 +152,6 @@ class ProgramEvolutionEnv(gym.Env):
         }
         reward = self.reward_extractor(info)
         return obs, reward, False, False, info
-
-    def _process_action(
-        self, action: Union[str, Dict[str, Any], EvolutionAction]
-    ) -> Optional[EvolutionAction]:
-        """
-        Process action into EvolutionAction format
-
-        Returns:
-            EvolutionAction if successful, None if failed
-        """
-        try:
-            return self._parse_action(action)
-        except (ValueError, TypeError, KeyError):
-            return None
 
     def _build_prompts(self, evolution_action: EvolutionAction) -> Optional[tuple[str, str]]:
         """

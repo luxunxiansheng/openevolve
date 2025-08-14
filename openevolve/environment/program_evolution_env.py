@@ -92,48 +92,53 @@ class ProgramEvolutionEnv(gym.Env):
         return obs, info
 
     def step(self, action: Union[str, Dict[str, Any], EvolutionAction]):
-        """Execute one step: process action, build prompts, generate and evaluate code"""
+        """
+        Execute one step: process action, build prompts, generate and evaluate code
+
+        Args:
+            action: Evolution action in various formats (string, dict, or EvolutionAction)
+
+        Returns:
+            Tuple of (observation, reward, terminated, truncated, info)
+        """
         self.total_steps += 1
 
-        # Process the action
-        try:
-            evolution_action = self._parse_action(action)
-            system_prompt, user_prompt = self.prompt_builder.build_prompts(evolution_action)
-        except Exception as e:
-            return self._error_response(f"Action processing failed: {e}")
+        # Process action
+        evolution_action = self._process_action(action)
+        if evolution_action is None:
+            return self._error_response("Invalid action provided")
 
-        # Generate code via LLM proxy
-        try:
-            new_program = self.code_generator.generate_code(system_prompt, user_prompt)
-            generation_ok = bool(new_program)
-        except Exception as e:
-            return self._error_response(f"Generation failed: {e}")
+        # Build prompts
+        prompts = self._build_prompts(evolution_action)
+        if prompts is None:
+            return self._error_response("Failed to build prompts")
+
+        system_prompt, user_prompt = prompts
+
+        # Generate code
+        generation_result = self._generate_code(system_prompt, user_prompt)
+        if not generation_result["success"]:
+            return self._error_response(generation_result["error"])
+
+        new_program = generation_result["program"]
 
         # Evaluate code
-        try:
-            metrics = self._evaluate_code(new_program)
-            evaluation_ok = bool(metrics)
-        except Exception as e:
-            return self._error_response(f"Evaluation failed: {e}", new_program)
+        evaluation_result = self._evaluate_code_safe(new_program)
+        if not evaluation_result["success"]:
+            return self._error_response(evaluation_result["error"], new_program)
 
-        # Create response
-        obs = {
-            "generated_program": new_program,
-            "evaluation_metrics": self._to_array(metrics),
-            "success": int(generation_ok and evaluation_ok),
-        }
+        metrics = evaluation_result["metrics"]
 
-        info = {
-            "raw_metrics": metrics,
-            "generation_success": generation_ok,
-            "evaluation_success": evaluation_ok,
-            "evolution_action": evolution_action.to_dict(),
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
-        }
-
-        reward = self.reward_extractor(info)
-        return obs, reward, False, False, info
+        # Build response
+        return self._build_response(
+            evolution_action=evolution_action,
+            new_program=new_program,
+            metrics=metrics,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            generation_success=True,
+            evaluation_success=True,
+        )
 
     def _parse_action(self, action: Union[str, Dict[str, Any], EvolutionAction]) -> EvolutionAction:
         """Parse different action formats into EvolutionAction"""
@@ -160,6 +165,96 @@ class ProgramEvolutionEnv(gym.Env):
             "generation_success": bool(program),
             "evaluation_success": False,
         }
+        reward = self.reward_extractor(info)
+        return obs, reward, False, False, info
+
+    def _process_action(
+        self, action: Union[str, Dict[str, Any], EvolutionAction]
+    ) -> Optional[EvolutionAction]:
+        """
+        Process action into EvolutionAction format
+
+        Returns:
+            EvolutionAction if successful, None if failed
+        """
+        try:
+            return self._parse_action(action)
+        except (ValueError, TypeError, KeyError):
+            return None
+
+    def _build_prompts(self, evolution_action: EvolutionAction) -> Optional[tuple[str, str]]:
+        """
+        Build system and user prompts
+
+        Returns:
+            (system_prompt, user_prompt) tuple if successful, None if failed
+        """
+        try:
+            return self.prompt_builder.build_prompts(evolution_action)
+        except Exception:
+            return None
+
+    def _generate_code(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
+        """
+        Generate code using LLM
+
+        Returns:
+            Result dict with success, error, and program fields
+        """
+        try:
+            program = self.code_generator.generate_code(system_prompt, user_prompt)
+            if not program or not program.strip():
+                return {"success": False, "error": "Empty program generated", "program": ""}
+            return {"success": True, "error": "", "program": program}
+        except Exception as e:
+            return {"success": False, "error": f"Code generation failed: {str(e)}", "program": ""}
+
+    def _evaluate_code_safe(self, code: str) -> Dict[str, Any]:
+        """
+        Safely evaluate code
+
+        Returns:
+            Result dict with success, error, and metrics fields
+        """
+        try:
+            metrics = self._evaluate_code(code)
+            if not metrics:
+                return {"success": False, "error": "No evaluation metrics returned", "metrics": {}}
+            return {"success": True, "error": "", "metrics": metrics}
+        except Exception as e:
+            return {"success": False, "error": f"Code evaluation failed: {str(e)}", "metrics": {}}
+
+    def _build_response(
+        self,
+        evolution_action: EvolutionAction,
+        new_program: str,
+        metrics: Dict[str, float],
+        system_prompt: str,
+        user_prompt: str,
+        generation_success: bool,
+        evaluation_success: bool,
+    ) -> tuple:
+        """
+        Build the final step response
+
+        Returns:
+            Standard gym step tuple (obs, reward, terminated, truncated, info)
+        """
+        obs = {
+            "generated_program": new_program,
+            "evaluation_metrics": self._to_array(metrics),
+            "success": int(generation_success and evaluation_success),
+        }
+
+        info = {
+            "raw_metrics": metrics,
+            "generation_success": generation_success,
+            "evaluation_success": evaluation_success,
+            "evolution_action": evolution_action.to_dict(),
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+        }
+
         reward = self.reward_extractor(info)
         return obs, reward, False, False, info
 

@@ -55,9 +55,10 @@ class Critic(ABC):
     Abstract base class for critics.
     All critics should inherit from this class and implement the evaluate method.
     """
-    @abstractmethod 
-    async def evaluate(self,**kwargs) -> EvaluationResult:
-        pass # evaluate and log the metrics and artifacts of the given program code.
+
+    @abstractmethod
+    async def evaluate(self, **kwargs) -> EvaluationResult:
+        pass  # evaluate and log the metrics and artifacts of the given program code.
 
     def log_metrics(self, metrics: Dict[str, float]) -> None:
         """
@@ -68,17 +69,15 @@ class Critic(ABC):
         """
         for key, value in metrics.items():
             print(f"Metric {key}: {value}")
-        
-    
-    
-    def log_artifact(self, artifacts:Dict[str, Union[str, bytes]]) -> None:
+
+    def log_artifact(self, artifacts: Dict[str, Union[str, bytes]]) -> None:
         """
-        Log an artifact during evaluation. The default implementation is to print the artifact 
+        Log an artifact during evaluation. The default implementation is to print the artifact
 
 
         :param artifacts: A dictionary containing artifact keys and their values.
         :return: None
-        
+
         """
         for key, value in artifacts.items():
             if isinstance(value, str):
@@ -87,8 +86,3 @@ class Critic(ABC):
                 print(f"Artifact {key}: {len(value)} bytes")
             else:
                 print(f"Artifact {key}: {str(value)}")
-
-
-
-        
-        

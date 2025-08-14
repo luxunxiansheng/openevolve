@@ -78,13 +78,18 @@ class EvolutionActor(Actor):
 
             if user_template_key is None:
                 # Default behavior: diff-based vs full rewrite
-                user_template_key = (Templates.DIFF_USER if self.diff_based_evolution else Templates.FULL_REWRITE_USER)
+                user_template_key = (
+                    Templates.DIFF_USER
+                    if self.diff_based_evolution
+                    else Templates.FULL_REWRITE_USER
+                )
 
             # Sample parent and inspirations from database (Ray actor)
             parent, inspirations = ray.get(self.database.sample.remote())
 
-            grand_parent =  ray.get(self.database.get.remote(parent.parent_id)) if parent.parent_id else None
-
+            grand_parent = (
+                ray.get(self.database.get.remote(parent.parent_id)) if parent.parent_id else None
+            )
 
             # Get artifacts for the parent program if available
             parent_artifacts = ray.get(self.database.get_artifacts.remote(parent.id))
@@ -107,7 +112,7 @@ class EvolutionActor(Actor):
             # Build prompt to create new code based on parent and inspirations
             prompt = self.actor_prompt_sampler.build_prompt(
                 current_program=parent.code,
-                parent_program= grand_parent.code if grand_parent else None,
+                parent_program=grand_parent.code if grand_parent else None,
                 program_metrics=parent.metrics,
                 previous_programs=[p.to_dict() for p in island_previous_programs],
                 top_programs=[p.to_dict() for p in island_top_programs],

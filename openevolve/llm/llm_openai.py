@@ -53,7 +53,7 @@ class OpenAILLM(LLMInterface):
         """Generate text using a system message and conversational context"""
         if system_message is None:
             system_message = self.system_message
-            
+
         messages = [{"role": "user", "content": prompt}]
         formatted_messages = [{"role": "system", "content": system_message}]
         formatted_messages.extend(messages)

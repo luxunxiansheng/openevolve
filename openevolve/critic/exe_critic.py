@@ -190,7 +190,6 @@ class PythonExecutionCritic(Critic):
             if not processed:
                 i += 1
 
-
         return EvaluationResult(metrics=metrics, artifacts=artifacts)
 
     def _find_actual_traceback(self, lines: list, start_index: int) -> list:

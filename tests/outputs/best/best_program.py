@@ -1,5 +1,3 @@
-
-
 # EVOLVE-BLOCK-START
 """
 Circle Packing for n=26 Circles with Enhanced Efficiency and Clarity
@@ -38,8 +36,20 @@ def construct_packing():
     centers[0] = central_coords
 
     # Step 2: Place rings around the central circle
-    place_ring(centers, base_index=1, num_circles=first_ring_size, center=central_coords, radius=first_ring_radius)
-    place_ring(centers, base_index=1 + first_ring_size, num_circles=outer_ring_size, center=central_coords, radius=outer_ring_radius)
+    place_ring(
+        centers,
+        base_index=1,
+        num_circles=first_ring_size,
+        center=central_coords,
+        radius=first_ring_radius,
+    )
+    place_ring(
+        centers,
+        base_index=1 + first_ring_size,
+        num_circles=outer_ring_size,
+        center=central_coords,
+        radius=outer_ring_radius,
+    )
 
     # Step 3: Ensure no circle reaches the square boundary by clipping
     np.clip(centers, boundary_clip[0], boundary_clip[1], out=centers)
@@ -69,7 +79,7 @@ def place_ring(centers, base_index, num_circles, center, radius):
     circle_x = cx + radius * np.cos(angles)
     circle_y = cy + radius * np.sin(angles)
     positions = np.column_stack((circle_x, circle_y))
-    centers[base_index:base_index + num_circles] = positions
+    centers[base_index : base_index + num_circles] = positions
 
 
 def compute_max_radii(centers):
@@ -97,13 +107,12 @@ def compute_max_radii(centers):
 
     # Determine distance to walls
     x, y = centers[:, 0], centers[:, 1]
-    wall_constraints = np.minimum(
-        np.minimum(x, y), 
-        np.minimum(1 - x, 1 - y)
-    )
+    wall_constraints = np.minimum(np.minimum(x, y), np.minimum(1 - x, 1 - y))
 
     # Use pairwise distance for overlap prevention, wall constraints for boundary
     radii = np.minimum(wall_constraints, min_pairwise_distances / 2.0)
 
     return radii
+
+
 # EVOLVE-BLOCK-END

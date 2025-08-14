@@ -3,10 +3,12 @@ from typing import Optional
 from attr import dataclass
 
 
-@dataclass 
+@dataclass
 class Config:
 
-    system_message: Optional[str] = """
+    system_message: Optional[
+        str
+    ] = """
     You are an expert mathematician specializing in circle packing problems and computational geometry. Your task is to improve a constructor function that directly produces a specific arrangement of 26 circles in a unit square, maximizing the sum of their radii. The AlphaEvolve paper achieved a sum of 2.635 for n=26.
 
     Key geometric insights:
@@ -18,4 +20,3 @@ class Config:
     - Perfect symmetry may not yield the optimal packing due to edge effects
 
     Focus on designing an explicit constructor that places each circle in a specific position, rather than an iterative search algorithm."""
-    

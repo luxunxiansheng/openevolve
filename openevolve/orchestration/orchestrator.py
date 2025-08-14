@@ -38,10 +38,8 @@ class Orchestrator:
         iterations_per_island: int = 15,
         # Database config fields
         db_num_islands: int = 5,
-
-    
     ):
-        self.output_dir = output_dir    
+        self.output_dir = output_dir
         self.evolved_program_path = evoved_program_path
         self.file_extension = file_extension
         self.language = language
@@ -53,7 +51,6 @@ class Orchestrator:
         # Initialize the program database
         self.database = ray.remote(ProgramDatabase).remote(num_islands=db_num_islands)
 
-     
         actor_prompt_sampler = PromptSampler(system_template_key=Templates.ACTOR_SYSTEM)
         llm_actor_client = EnsembleLLM([OpenAILLM()])
 
@@ -71,8 +68,6 @@ class Orchestrator:
             llm_critic=llm_critic,
             exe_critic=exe_critic,
         )
-
-
 
     async def run(self):
         """Run the orchestration process"""
@@ -109,13 +104,13 @@ class Orchestrator:
             logger.info(f"Running iteration {current_iteration + 1}/{self.max_iterations}")
             try:
                 logger.info(ray.get(self.database.log_island_status.remote()))
-                
+
                 result: ActionResult = await self.evolution_actor.act(
                     iteration=current_iteration
                 )  # This returns a Result object
 
                 logger.debug(f"Result from evolution actor: {result}")
-                
+
                 # Reconstruct program from dict
                 child_program = Program(**result.child_program_dict)
 
@@ -127,7 +122,6 @@ class Orchestrator:
                     ray.get(
                         self.database.store_artifacts.remote(child_program.id, result.artifacts)
                     )
-
 
                 # Island management
                 if (
@@ -157,13 +151,12 @@ class Orchestrator:
                     f"completed in {result.iteration_time:.2f}s"
                 )
 
-         
                 avg_score = safe_numeric_average(child_program.metrics)
                 logger.info(
                     f"Iteration {current_iteration}: "
                     f"Average score for program {child_program.id} is {avg_score:.2f}"
                 )
-                    
+
                 # Check for new best
                 best_program_id = ray.get(self.database.get_best_program_id.remote())
                 if best_program_id == child_program.id:
@@ -175,12 +168,12 @@ class Orchestrator:
                     self._save_best_program(child_program)
 
                 # Check target score
-                if self.target_score is not None :
+                if self.target_score is not None:
                     if avg_score >= self.target_score:
-                            logger.info(
-                                f"Target score {self.target_score} reached at iteration {current_iteration}"
-                            )
-                            break
+                        logger.info(
+                            f"Target score {self.target_score} reached at iteration {current_iteration}"
+                        )
+                        break
 
             except Exception as e:
                 logger.error(f"Error processing result from iteration {current_iteration}: {e}")

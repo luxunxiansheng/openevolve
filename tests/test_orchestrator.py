@@ -13,10 +13,11 @@ output_path = "/workspaces/openevolve/tests/outputs"
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
+
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
         self.orchestrator = Orchestrator(
-            critic_program_path= python_critic_path,
+            critic_program_path=python_critic_path,
             evoved_program_path=evoved_program_path,
             output_dir=output_path,
         )

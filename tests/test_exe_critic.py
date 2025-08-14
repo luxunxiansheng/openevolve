@@ -3,8 +3,14 @@ import unittest
 # Adjust the import path as needed
 from openevolve.critic.exe_critic import PythonExecutionCritic
 
-critic_python_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
-python_evovled_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"
+critic_python_file_path = (
+    "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+)
+python_evovled_file_path = (
+    "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"
+)
+
+
 class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
 
@@ -13,7 +19,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     async def test_evaluate_python(self):
         # This is a placeholder for an actual test.
         # You would need to create a valid Python file and runtime environment for a real test.
-          # Replace with an actual script path
+        # Replace with an actual script path
         runtime_env = {}  # Adjust as needed
 
         with open(python_evovled_file_path, "r") as file:

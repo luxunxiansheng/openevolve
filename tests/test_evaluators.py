@@ -172,7 +172,11 @@ class TestEvaluatorIntegration(unittest.TestCase):
 
     def test_can_import_all_evaluators(self):
         """Test that all evaluators can be imported successfully"""
-        from openevolve.environment.evaluators import BaseEvaluator, ExecutionEvaluator, LLMEvaluator
+        from openevolve.environment.evaluators import (
+            BaseEvaluator,
+            ExecutionEvaluator,
+            LLMEvaluator,
+        )
 
         # Check that they're all classes
         self.assertTrue(callable(ExecutionEvaluator))

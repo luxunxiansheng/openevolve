@@ -4,11 +4,8 @@ Test suite for the modular evaluator system
 
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, Mock
 
 from openevolve.environment.evaluators import BaseEvaluator, ExecutionEvaluator, LLMEvaluator
-from openevolve.llm.llm_interface import LLMInterface
-from openevolve.prompt.templates import Templates
 
 
 class TestBaseEvaluator(unittest.TestCase):

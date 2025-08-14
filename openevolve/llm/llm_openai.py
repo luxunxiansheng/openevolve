@@ -3,14 +3,13 @@ OpenAI API interface for LLMs
 """
 
 import asyncio
+from email import message
 import logging
-import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import openai
 
-from openevolve.config import LLMConfig
-from openevolve.llm.base import LLMInterface
+from openevolve.llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +19,29 @@ class OpenAILLM(LLMInterface):
 
     def __init__(
         self,
-        model_cfg: Optional[dict] = None,
+        system_message: Optional[str] = "You are a helpful assistant.",
+        name: str = "Qwen3-14B-AWQ",
+        temperature: float = 0.95,
+        top_p: float = 1.0,
+        max_tokens: int = 20480,
+        timeout: int = 120,
+        retries: int = 3,
+        retry_delay: int = 5,
+        api_base: str = "http://localhost:8010/v1",
+        api_key: Optional[str] = "none",
+        random_seed: Optional[int] = 0,
     ):
-        self.model = model_cfg.name
-        self.system_message = model_cfg.system_message
-        self.temperature = model_cfg.temperature
-        self.top_p = model_cfg.top_p
-        self.max_tokens = model_cfg.max_tokens
-        self.timeout = model_cfg.timeout
-        self.retries = model_cfg.retries
-        self.retry_delay = model_cfg.retry_delay
-        self.api_base = model_cfg.api_base
-        self.api_key = model_cfg.api_key
-        self.random_seed = getattr(model_cfg, "random_seed", None)
+        self.model = name
+        self.system_message = system_message
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+        self.retries = retries
+        self.retry_delay = retry_delay
+        self.api_base = api_base
+        self.api_key = api_key
+        self.random_seed = random_seed
 
         # Set up API client
         self.client = openai.OpenAI(
@@ -40,27 +49,12 @@ class OpenAILLM(LLMInterface):
             base_url=self.api_base,
         )
 
-        # Only log unique models to reduce duplication
-        if not hasattr(logger, "_initialized_models"):
-            logger._initialized_models = set()
-
-        if self.model not in logger._initialized_models:
-            logger.info(f"Initialized OpenAI LLM with model: {self.model}")
-            logger._initialized_models.add(self.model)
-
-    async def generate(self, prompt: str, **kwargs) -> str:
-        """Generate text from a prompt"""
-        return await self.generate_with_context(
-            system_message=self.system_message,
-            messages=[{"role": "user", "content": prompt}],
-            **kwargs,
-        )
-
-    async def generate_with_context(
-        self, system_message: str, messages: List[Dict[str, str]], **kwargs
-    ) -> str:
+    async def generate(self, prompt: str, system_message: Optional[str] = None, **kwargs) -> str:
         """Generate text using a system message and conversational context"""
-        # Prepare messages with system message
+        if system_message is None:
+            system_message = self.system_message
+            
+        messages = [{"role": "user", "content": prompt}]
         formatted_messages = [{"role": "system", "content": system_message}]
         formatted_messages.extend(messages)
 

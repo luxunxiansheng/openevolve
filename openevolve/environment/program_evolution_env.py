@@ -16,7 +16,6 @@ from openevolve.utils.metrics_utils import safe_numeric_average
 from openevolve.environment.evaluators import ExecutionEvaluator, LLMEvaluator
 from openevolve.environment.prompts import PromptBuilder
 from openevolve.environment.code_generation import CodeGenerator
-from openevolve.environment.evaluation import CodeEvaluator
 
 
 class ProgramEvolutionEnv(gym.Env):
@@ -52,7 +51,6 @@ class ProgramEvolutionEnv(gym.Env):
         # Initialize specialized components
         self.prompt_builder = PromptBuilder(language)
         self.code_generator = CodeGenerator(llm, language, max_code_length)
-        self.code_evaluator = CodeEvaluator(exe_evaluator, llm_evaluator, language)
 
         # Action space supports structured actions
         self.action_space = spaces.Dict(
@@ -113,7 +111,7 @@ class ProgramEvolutionEnv(gym.Env):
 
         # Evaluate code
         try:
-            metrics = self.code_evaluator.evaluate_code(new_program)
+            metrics = self._evaluate_code(new_program)
             evaluation_ok = bool(metrics)
         except Exception as e:
             return self._error_response(f"Evaluation failed: {e}", new_program)
@@ -164,6 +162,68 @@ class ProgramEvolutionEnv(gym.Env):
         }
         reward = self.reward_extractor(info)
         return obs, reward, False, False, info
+
+    def _evaluate_code(self, code: str) -> Dict[str, float]:
+        """
+        Evaluate code using available evaluators
+
+        Args:
+            code: Code to evaluate
+
+        Returns:
+            Dictionary of evaluation metrics
+        """
+        import asyncio
+
+        # Start with execution evaluation
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Get execution metrics
+            result = loop.run_until_complete(
+                self.exe_evaluator.evaluate(code=code, language=self.language)
+            )
+
+            # Add LLM evaluation if available
+            if self.llm_evaluator:
+                try:
+                    llm_result = loop.run_until_complete(
+                        self.llm_evaluator.evaluate(code=code, language=self.language)
+                    )
+                    # Add LLM metrics with prefix to avoid conflicts
+                    for key, value in llm_result.items():
+                        result[f"llm_{key}"] = value
+                except Exception:
+                    # LLM evaluation is optional, don't fail if it errors
+                    pass
+
+            # Clean and validate metrics
+            return self._clean_metrics(result)
+        finally:
+            loop.close()
+
+    def _clean_metrics(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Clean and validate metrics, converting all values to floats
+
+        Args:
+            metrics: Raw metrics dictionary
+
+        Returns:
+            Cleaned metrics dictionary with float values
+        """
+        clean_metrics = {}
+
+        for key, value in metrics.items():
+            try:
+                # Convert to float, handling various numeric types
+                clean_metrics[key] = float(value)
+            except (ValueError, TypeError):
+                # If conversion fails, use 0.0 as default
+                clean_metrics[key] = 0.0
+
+        return clean_metrics
 
     def _to_array(self, metrics: Dict[str, float]) -> np.ndarray:
         """Convert metrics to fixed array"""

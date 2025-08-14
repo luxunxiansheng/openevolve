@@ -1,11 +1,14 @@
 """
 Program Evolution Environment for OpenEvolve
 
-A gymnasium environment for evolving programs using LLMs and evaluation.
+A stateless gymnasium environment for evolving programs using LLMs and evaluation.
+All context and history is provided through prompts rather than maintained internally.
 """
 
 import asyncio
 import logging
+import time
+import re
 from typing import Any, Dict, Optional, Tuple
 import gymnasium as gym
 from gymnasium import spaces
@@ -20,11 +23,16 @@ logger = logging.getLogger(__name__)
 
 class ProgramEvolutionEnv(gym.Env):
     """
-    Gymnasium environment for single program evolution.
+    Stateless gymnasium environment for program evolution.
 
-    Action Space: Text prompt to guide program generation
-    Observation Space: Current program state and metrics
-    Reward: Improvement in program performance
+    This environment doesn't maintain state between steps. Instead:
+    - All necessary context (history, metrics, programs) is provided via the action prompt
+    - The observation only contains the immediate result of the last action
+    - Reward is calculated based on information provided in the action
+
+    Action Space: Complete prompt containing all context and instructions
+    Observation Space: Current program and evaluation results
+    Reward: Improvement based on metrics provided in the action
     """
 
     def __init__(
@@ -33,7 +41,7 @@ class ProgramEvolutionEnv(gym.Env):
         exe_evaluator: ExecutionEvaluator,
         llm_evaluator: Optional[LLMEvaluator] = None,
         language: str = "python",
-        max_prompt_length: int = 10000,
+        max_prompt_length: int = 50000,  # Increased for comprehensive context
         max_program_length: int = 50000,
         reward_scale: float = 1.0,
         improvement_bonus: float = 0.1,
@@ -41,14 +49,14 @@ class ProgramEvolutionEnv(gym.Env):
         penalty_for_errors: float = -0.1,
     ):
         """
-        Initialize the Program Evolution Environment
+        Initialize the Stateless Program Evolution Environment
 
         Args:
             llm: Language model for program generation
             exe_evaluator: Execution evaluator for program assessment
             llm_evaluator: Optional LLM evaluator for additional assessment
             language: Programming language (default: python)
-            max_prompt_length: Maximum length of prompt actions
+            max_prompt_length: Maximum length of comprehensive prompt actions
             max_program_length: Maximum length of program code
             reward_scale: Scale factor for rewards
             improvement_bonus: Bonus for any improvement
@@ -69,163 +77,299 @@ class ProgramEvolutionEnv(gym.Env):
         self.diversity_bonus = diversity_bonus
         self.penalty_for_errors = penalty_for_errors
 
-        # Action space: Text prompts
+        # Action space: Comprehensive prompts containing all context
         self.action_space = spaces.Text(max_length=max_prompt_length)
 
-        # Observation space: Program state and metrics
+        # Observation space: Immediate results only (no persistent state)
         self.observation_space = spaces.Dict(
             {
-                "current_program": spaces.Text(max_length=max_program_length),
-                "parent_program": spaces.Text(max_length=max_program_length),
-                "current_metrics": spaces.Box(
+                "generated_program": spaces.Text(max_length=max_program_length),
+                "evaluation_metrics": spaces.Box(
                     low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
                 ),
-                "parent_metrics": spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
-                ),
-                "iteration": spaces.Box(low=0, high=np.inf, shape=(1,), dtype=np.int32),
                 "has_errors": spaces.Discrete(2),  # 0: no errors, 1: has errors
+                "generation_success": spaces.Discrete(2),  # 0: failed, 1: success
             }
         )
 
-        # Internal state
-        self.current_program: Optional[str] = None
-        self.parent_program: Optional[str] = None
-        self.current_metrics: Dict[str, float] = {}
-        self.parent_metrics: Dict[str, float] = {}
-        self.iteration = 0
-        self.has_errors = False
+        # No persistent internal state - environment is stateless
+        # All context must be provided through the action prompt
 
-        # Episode tracking
+        # Episode tracking (minimal)
         self.episode_count = 0
-        self.total_iterations = 0
+        self.total_steps = 0
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Reset the environment with an initial program
+        Reset the environment for a new episode
 
         Args:
             seed: Random seed (not used currently)
-            options: Reset options, can contain 'initial_program'
+            options: Reset options (not used in stateless mode)
 
         Returns:
-            observation: Current state observation
-            info: Additional information
+            observation: Empty initial observation (no state maintained)
+            info: Episode information
         """
         super().reset(seed=seed)
-
-        # Get initial program from options or use default
-        if options and "initial_program" in options:
-            initial_program = options["initial_program"]
-        else:
-            initial_program = self._get_default_initial_program()
-
-        # Evaluate initial program
-        initial_metrics = self._evaluate_program(initial_program)
-
-        # Set initial state
-        self.current_program = initial_program
-        self.parent_program = ""
-        self.current_metrics = initial_metrics
-        self.parent_metrics = {}
-        self.iteration = 0
-        self.has_errors = "error" in initial_metrics
 
         # Increment episode counter
         self.episode_count += 1
 
-        logger.info(f"Environment reset with initial program (episode {self.episode_count})")
+        logger.info(f"Environment reset for new episode {self.episode_count} (stateless mode)")
 
-        observation = self._get_observation()
-        info = {"initial_metrics": initial_metrics}
+        # Return empty observation - no initial state
+        observation = self._get_empty_observation()
+        info = {"episode": self.episode_count, "mode": "stateless"}
 
         return observation, info
 
     def step(self, action: str) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
         """
-        Execute one step in the environment
+        Execute one step in the environment using a comprehensive prompt
+
+        The action should be a complete prompt that contains:
+        - Instructions for code generation/modification
+        - Current program context and history
+        - Previous metrics and performance data
+        - Any other context needed for the LLM
 
         Args:
-            action: Text prompt for program generation
+            action: Complete prompt containing all necessary context
 
         Returns:
-            observation: New state observation
-            reward: Reward for this step
-            terminated: Whether episode is finished
-            truncated: Whether episode was truncated
-            info: Additional information
+            observation: New program and evaluation results
+            reward: Reward calculated from metrics (if provided in context)
+            terminated: Whether episode is finished (always False in stateless mode)
+            truncated: Whether episode was truncated (always False)
+            info: Additional information about the step
         """
-        self.iteration += 1
-        self.total_iterations += 1
+        self.total_steps += 1
 
-        # Store current state as parent
-        self.parent_program = self.current_program
-        self.parent_metrics = self.current_metrics.copy()
+        step_start_time = time.time()
 
-        # Generate new program using LLM
+        # Parse context from the action prompt if available
+        context = self._parse_action_context(action)
+
+        # Generate new program using LLM with the complete prompt
         try:
             new_program = self._generate_program(action)
             logger.debug(f"Generated new program (length: {len(new_program)})")
+            generation_success = True
         except Exception as e:
             logger.error(f"Error generating program: {e}")
-            # Return current state with penalty
-            observation = self._get_observation()
+            # Return empty observation with penalty
+            observation = self._get_empty_observation()
             reward = self.penalty_for_errors
-            info = {"error": str(e), "step": "generation"}
+            info = {
+                "error": str(e),
+                "step": "generation",
+                "step_time": time.time() - step_start_time,
+                "generation_success": False,
+            }
             return observation, reward, False, False, info
 
         # Check if generation returned an error string
         if new_program.startswith("# Error generating code:"):
             logger.error("LLM generation returned error")
-            observation = self._get_observation()
+            observation = self._get_empty_observation()
             reward = self.penalty_for_errors
-            info = {"error": new_program, "step": "generation"}
+            info = {
+                "error": new_program,
+                "step": "generation",
+                "step_time": time.time() - step_start_time,
+                "generation_success": False,
+            }
             return observation, reward, False, False, info
 
         # Evaluate new program
         try:
             new_metrics = self._evaluate_program(new_program)
             logger.debug(f"Evaluated program with metrics: {new_metrics}")
+            evaluation_success = True
         except Exception as e:
             logger.error(f"Error evaluating program: {e}")
-            # Return current state with penalty
-            observation = self._get_observation()
+            # Return observation with generated program but no metrics
+            observation = {
+                "generated_program": new_program,
+                "evaluation_metrics": np.zeros(10, dtype=np.float32),
+                "has_errors": 1,
+                "generation_success": 1,  # Generation succeeded, evaluation failed
+            }
             reward = self.penalty_for_errors
-            info = {"error": str(e), "step": "evaluation"}
+            info = {
+                "error": str(e),
+                "step": "evaluation",
+                "step_time": time.time() - step_start_time,
+                "generation_success": True,
+                "evaluation_success": False,
+                "metrics": {"error": 1.0, "score": 0.0},  # Add metrics for test compatibility
+                "reward_calculation": {"error_only": self.penalty_for_errors},
+                "context_parsed": context is not None,
+            }
             return observation, reward, False, False, info
 
-        # Update state
-        self.current_program = new_program
-        self.current_metrics = new_metrics
-        self.has_errors = "error" in new_metrics
+        # Calculate reward based on context and new metrics
+        reward = self._calculate_reward_from_context(new_metrics, context)
 
-        # Calculate reward
-        reward = self._calculate_reward(new_metrics, self.parent_metrics)
+        # Create observation with results
+        observation = {
+            "generated_program": new_program,
+            "evaluation_metrics": self._metrics_to_array(new_metrics),
+            "has_errors": int("error" in new_metrics and new_metrics.get("error", 0) > 0),
+            "generation_success": int(generation_success),
+        }
 
-        # Get new observation
-        observation = self._get_observation()
-
-        # Episode termination (could be based on various criteria)
-        terminated = False  # Single step episodes for now
+        # Episodes don't terminate in stateless mode - each step is independent
+        terminated = False
         truncated = False
 
         # Info dictionary
         info = {
-            "new_metrics": new_metrics,
-            "parent_metrics": self.parent_metrics,
-            "reward_components": self._get_reward_components(new_metrics, self.parent_metrics),
-            "iteration": self.iteration,
-            "action_length": len(action),
+            "metrics": new_metrics,
+            "reward_calculation": self._get_reward_explanation(new_metrics, context),
+            "step_time": time.time() - step_start_time,
+            "generation_success": generation_success,
+            "evaluation_success": True,
+            "context_parsed": context is not None,
         }
 
+        current_score = safe_numeric_average(new_metrics)
         logger.info(
-            f"Step {self.iteration}: reward={reward:.4f}, "
-            f"current_score={safe_numeric_average(new_metrics):.4f}"
+            f"Step {self.total_steps}: reward={reward:.4f}, "
+            f"score={current_score:.4f}, "
+            f"success={generation_success}"
         )
 
         return observation, reward, terminated, truncated, info
+
+    def _parse_action_context(self, action: str) -> Optional[Dict[str, Any]]:
+        """
+        Parse context information from the action prompt
+
+        Looks for structured context in the prompt like:
+        - Current score: X.XX
+        - Previous score: X.XX
+        - Metrics: {...}
+
+        Args:
+            action: The complete prompt containing context
+
+        Returns:
+            Dictionary with parsed context or None if no context found
+        """
+        context = {}
+
+        # Try to extract current score
+        current_score_match = re.search(
+            r"current[_\s]*score:?\s*([0-9]*\.?[0-9]+)", action, re.IGNORECASE
+        )
+        if current_score_match:
+            context["current_score"] = float(current_score_match.group(1))
+
+        # Try to extract previous/parent score
+        parent_score_match = re.search(
+            r"(?:previous|parent)[_\s]*score:?\s*([0-9]*\.?[0-9]+)", action, re.IGNORECASE
+        )
+        if parent_score_match:
+            context["parent_score"] = float(parent_score_match.group(1))
+
+        # Try to extract metrics section
+        metrics_match = re.search(r"metrics:?\s*\{([^}]+)\}", action, re.IGNORECASE)
+        if metrics_match:
+            try:
+                # Simple parsing of key: value pairs
+                metrics_str = metrics_match.group(1)
+                metrics = {}
+                for line in metrics_str.split(","):
+                    if ":" in line:
+                        key, value = line.split(":", 1)
+                        try:
+                            metrics[key.strip()] = float(value.strip())
+                        except ValueError:
+                            pass
+                context["metrics"] = metrics
+            except:
+                pass
+
+        return context if context else None
+
+    def _get_empty_observation(self) -> Dict[str, Any]:
+        """Get an empty observation for error cases"""
+        return {
+            "generated_program": "",
+            "evaluation_metrics": np.zeros(10, dtype=np.float32),
+            "has_errors": 1,
+            "generation_success": 0,
+        }
+
+    def _calculate_reward_from_context(
+        self, current_metrics: Dict[str, float], context: Optional[Dict[str, Any]]
+    ) -> float:
+        """
+        Calculate reward based on current metrics and context from the prompt
+
+        Args:
+            current_metrics: Metrics from evaluating the generated program
+            context: Context parsed from the action prompt
+
+        Returns:
+            Calculated reward
+        """
+        current_score = safe_numeric_average(current_metrics)
+
+        # If we have context with previous score, calculate improvement
+        if context and "parent_score" in context:
+            parent_score = context["parent_score"]
+            improvement = current_score - parent_score
+
+            # Base reward is improvement
+            reward = improvement * self.reward_scale
+
+            # Add improvement bonus for any positive change
+            if improvement > 0:
+                reward += self.improvement_bonus
+
+        elif context and "current_score" in context:
+            # Use provided current score if available
+            reward = context["current_score"] * self.reward_scale
+        else:
+            # No context - use current score as reward
+            reward = current_score * self.reward_scale
+
+        # Add penalty for errors
+        if current_metrics.get("error", 0) > 0:
+            reward += self.penalty_for_errors
+
+        return reward
+
+    def _get_reward_explanation(
+        self, current_metrics: Dict[str, float], context: Optional[Dict[str, Any]]
+    ) -> Dict[str, float]:
+        """Get detailed explanation of reward calculation"""
+        current_score = safe_numeric_average(current_metrics)
+        explanation = {"current_score": current_score}
+
+        if context and "parent_score" in context:
+            parent_score = context["parent_score"]
+            improvement = current_score - parent_score
+            explanation.update(
+                {
+                    "parent_score": parent_score,
+                    "improvement": improvement,
+                    "improvement_reward": improvement * self.reward_scale,
+                }
+            )
+
+            if improvement > 0:
+                explanation["improvement_bonus"] = self.improvement_bonus
+
+        if current_metrics.get("error", 0) > 0:
+            explanation["error_penalty"] = self.penalty_for_errors
+
+        return explanation
 
     def _generate_program(self, prompt: str) -> str:
         """Generate new program using LLM with the given prompt"""
@@ -317,24 +461,19 @@ class ProgramEvolutionEnv(gym.Env):
     def _calculate_reward(
         self, current_metrics: Dict[str, float], parent_metrics: Dict[str, float]
     ) -> float:
-        """Calculate reward based on improvement"""
+        """Calculate reward based on improvement (backward compatibility)"""
         if not parent_metrics:
-            # First evaluation - return current score
             return safe_numeric_average(current_metrics) * self.reward_scale
 
-        # Calculate improvement
         current_score = safe_numeric_average(current_metrics)
         parent_score = safe_numeric_average(parent_metrics)
         improvement = current_score - parent_score
 
-        # Base reward is improvement
         reward = improvement * self.reward_scale
 
-        # Add improvement bonus for any positive change
         if improvement > 0:
             reward += self.improvement_bonus
 
-        # Add penalty for errors
         if current_metrics.get("error", 0) > 0:
             reward += self.penalty_for_errors
 
@@ -343,7 +482,7 @@ class ProgramEvolutionEnv(gym.Env):
     def _get_reward_components(
         self, current_metrics: Dict[str, float], parent_metrics: Dict[str, float]
     ) -> Dict[str, float]:
-        """Get detailed breakdown of reward components"""
+        """Get detailed breakdown of reward components (backward compatibility)"""
         if not parent_metrics:
             return {"initial_score": safe_numeric_average(current_metrics)}
 
@@ -366,19 +505,9 @@ class ProgramEvolutionEnv(gym.Env):
         return components
 
     def _get_observation(self) -> Dict[str, Any]:
-        """Get current observation"""
-        # Pad metrics to fixed size (10 elements)
-        current_metrics_array = self._metrics_to_array(self.current_metrics)
-        parent_metrics_array = self._metrics_to_array(self.parent_metrics)
-
-        return {
-            "current_program": self.current_program or "",
-            "parent_program": self.parent_program or "",
-            "current_metrics": current_metrics_array,
-            "parent_metrics": parent_metrics_array,
-            "iteration": np.array([self.iteration], dtype=np.int32),
-            "has_errors": int(self.has_errors),
-        }
+        """Get current observation (deprecated - for backward compatibility)"""
+        logger.warning("_get_observation called in stateless mode - returning empty observation")
+        return self._get_empty_observation()
 
     def _metrics_to_array(self, metrics: Dict[str, float]) -> np.ndarray:
         """Convert metrics dict to fixed-size array"""
@@ -409,17 +538,68 @@ class ProgramEvolutionEnv(gym.Env):
             return "// Initial program"
 
     def render(self, mode="human"):
-        """Render the current state"""
+        """Render the current state (stateless mode)"""
         if mode == "human":
-            print(f"\n=== Program Evolution Environment ===")
-            print(f"Episode: {self.episode_count}, Iteration: {self.iteration}")
-            print(f"Current Score: {safe_numeric_average(self.current_metrics):.4f}")
-            if self.parent_metrics:
-                print(f"Parent Score: {safe_numeric_average(self.parent_metrics):.4f}")
-            print(f"Has Errors: {self.has_errors}")
-            print(f"Program Length: {len(self.current_program or '')}")
-            print("=" * 40)
+            print(f"\n=== Program Evolution Environment (Stateless) ===")
+            print(f"Episode: {self.episode_count}, Total Steps: {self.total_steps}")
+            print("Mode: Stateless - no persistent state maintained")
+            print("Context provided through action prompts")
+            print("=" * 50)
 
     def close(self):
         """Clean up resources"""
-        logger.info(f"Environment closed after {self.total_iterations} total iterations")
+        logger.info(f"Environment closed after {self.total_steps} total steps")
+
+    @staticmethod
+    def create_context_prompt(
+        base_instruction: str,
+        current_program: Optional[str] = None,
+        current_metrics: Optional[Dict[str, float]] = None,
+        parent_program: Optional[str] = None,
+        parent_metrics: Optional[Dict[str, float]] = None,
+        history: Optional[str] = None,
+        additional_context: Optional[str] = None,
+    ) -> str:
+        """
+        Helper method to create a comprehensive context prompt
+
+        Args:
+            base_instruction: Base instruction for the LLM
+            current_program: Current program code
+            current_metrics: Current program metrics
+            parent_program: Parent program code
+            parent_metrics: Parent program metrics
+            history: Evolution history text
+            additional_context: Any additional context
+
+        Returns:
+            Complete prompt with embedded context
+        """
+        prompt_parts = [base_instruction]
+
+        # Add current program context
+        if current_program:
+            prompt_parts.append(f"\n## Current Program:\n```\n{current_program}\n```")
+
+        if current_metrics:
+            current_score = safe_numeric_average(current_metrics)
+            prompt_parts.append(f"\nCurrent Score: {current_score:.4f}")
+            metrics_str = "\n".join([f"- {k}: {v}" for k, v in current_metrics.items()])
+            prompt_parts.append(f"\nCurrent Metrics:\n{metrics_str}")
+
+        # Add parent context
+        if parent_program:
+            prompt_parts.append(f"\n## Parent Program:\n```\n{parent_program}\n```")
+
+        if parent_metrics:
+            parent_score = safe_numeric_average(parent_metrics)
+            prompt_parts.append(f"\nPrevious Score: {parent_score:.4f}")
+
+        # Add history and additional context
+        if history:
+            prompt_parts.append(f"\n## Evolution History:\n{history}")
+
+        if additional_context:
+            prompt_parts.append(f"\n## Additional Context:\n{additional_context}")
+
+        return "\n".join(prompt_parts)

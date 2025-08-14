@@ -78,27 +78,24 @@ class TestProgramEvolutionEnv(unittest.TestCase):
         try:
             observation, info = self.env.reset()
 
-            # Check observation structure
-            self.assertIn("current_program", observation)
-            self.assertIn("parent_program", observation)
-            self.assertIn("current_metrics", observation)
-            self.assertIn("parent_metrics", observation)
-            self.assertIn("iteration", observation)
+            # Check observation structure for stateless environment
+            self.assertIn("generated_program", observation)
+            self.assertIn("evaluation_metrics", observation)
             self.assertIn("has_errors", observation)
+            self.assertIn("generation_success", observation)
 
-            # Check initial state
-            self.assertTrue(len(observation["current_program"]) > 0)
-            self.assertEqual(observation["parent_program"], "")
-            self.assertEqual(observation["iteration"][0], 0)
-            self.assertIsInstance(observation["current_metrics"], np.ndarray)
-            self.assertIsInstance(observation["parent_metrics"], np.ndarray)
+            # Check initial state (stateless, so should be empty)
+            self.assertEqual(observation["generated_program"], "")
+            self.assertEqual(observation["generation_success"], 0)
+            self.assertIsInstance(observation["evaluation_metrics"], np.ndarray)
 
             # Check info
-            self.assertIn("initial_metrics", info)
-            self.assertIsInstance(info["initial_metrics"], dict)
+            self.assertIn("episode", info)
+            self.assertIn("mode", info)
+            self.assertEqual(info["mode"], "stateless")
 
-            print(f"Reset successful with program: {observation['current_program'][:100]}...")
-            print(f"Initial metrics: {info['initial_metrics']}")
+            print(f"Reset successful in stateless mode")
+            print(f"Episode: {info['episode']}")
 
         except Exception as e:
             self.skipTest(f"Environment reset failed (likely due to API/Ray unavailable): {e}")
@@ -117,12 +114,14 @@ print(fibonacci(10))
         try:
             observation, info = self.env.reset(options={"initial_program": custom_program})
 
-            # Check that our custom program is used
-            self.assertEqual(observation["current_program"], custom_program)
-            self.assertIn("initial_metrics", info)
+            # In stateless mode, reset doesn't use the custom program
+            # Check that reset worked (should be empty in stateless mode)
+            self.assertEqual(observation["generated_program"], "")
+            self.assertIn("episode", info)
+            self.assertEqual(info["mode"], "stateless")
 
-            print(f"Reset with custom program successful")
-            print(f"Custom program metrics: {info['initial_metrics']}")
+            print(f"Reset with custom program successful (stateless mode)")
+            print(f"Note: In stateless mode, custom programs are provided via action prompts")
 
         except Exception as e:
             self.skipTest(f"Environment reset with custom program failed: {e}")
@@ -132,31 +131,37 @@ print(fibonacci(10))
         try:
             # Reset environment
             observation, info = self.env.reset()
-            initial_program = observation["current_program"]
 
-            # Take a step with an action
-            action = "Improve this code by adding error handling and better documentation"
+            # Create a comprehensive prompt with context
+            action = self.env.create_context_prompt(
+                base_instruction="Improve this code by adding error handling and better documentation",
+                current_program="def hello():\n    return 'Hello, World!'",
+                current_metrics={"score": 0.5, "quality": 0.6},
+                parent_metrics={"score": 0.4, "quality": 0.5},
+            )
 
             new_obs, reward, terminated, truncated, step_info = self.env.step(action)
 
-            # Check that state changed
-            self.assertNotEqual(new_obs["current_program"], initial_program)
-            self.assertEqual(new_obs["parent_program"], initial_program)
-            self.assertEqual(new_obs["iteration"][0], 1)
+            # Check new observation structure
+            self.assertIn("generated_program", new_obs)
+            self.assertIn("evaluation_metrics", new_obs)
+            self.assertIn("has_errors", new_obs)
+            self.assertIn("generation_success", new_obs)
 
             # Check reward is numeric
             self.assertIsInstance(reward, (int, float))
 
-            # Check step info
-            self.assertIn("new_metrics", step_info)
-            self.assertIn("parent_metrics", step_info)
-            self.assertIn("reward_components", step_info)
-            self.assertIn("iteration", step_info)
+            # Check step info for stateless environment
+            self.assertIn("metrics", step_info)
+            self.assertIn("reward_calculation", step_info)
+            self.assertIn("step_time", step_info)
+            self.assertIn("generation_success", step_info)
+            self.assertIn("evaluation_success", step_info)
 
-            print(f"Step executed successfully")
+            print(f"Step executed successfully in stateless mode")
             print(f"Reward: {reward}")
-            print(f"New program length: {len(new_obs['current_program'])}")
-            print(f"Reward components: {step_info['reward_components']}")
+            print(f"Generated program length: {len(new_obs['generated_program'])}")
+            print(f"Reward calculation: {step_info['reward_calculation']}")
 
         except Exception as e:
             self.skipTest(f"Step execution failed: {e}")
@@ -167,11 +172,19 @@ print(fibonacci(10))
             # Reset environment
             observation, info = self.env.reset()
 
-            # Take multiple steps
+            # Take multiple steps with comprehensive prompts
             actions = [
-                "Add type hints to improve code quality",
-                "Add proper error handling",
-                "Optimize for better performance",
+                self.env.create_context_prompt(
+                    "Add type hints to improve code quality",
+                    current_program="def add(a, b): return a + b",
+                ),
+                self.env.create_context_prompt(
+                    "Add proper error handling", current_program="def divide(a, b): return a / b"
+                ),
+                self.env.create_context_prompt(
+                    "Optimize for better performance",
+                    current_program="def factorial(n): return n * factorial(n-1) if n > 1 else 1",
+                ),
             ]
 
             total_reward = 0
@@ -179,12 +192,14 @@ print(fibonacci(10))
                 obs, reward, terminated, truncated, step_info = self.env.step(action)
                 total_reward += reward
 
-                # Check iteration counter
-                self.assertEqual(obs["iteration"][0], i + 1)
+                # Check that we got a response
+                self.assertIn("generated_program", obs)
+                self.assertIn("generation_success", obs)
 
                 print(f"Step {i+1}: reward={reward:.4f}, total={total_reward:.4f}")
+                print(f"Generation success: {obs['generation_success']}")
 
-            print(f"Multiple steps completed successfully")
+            print(f"Multiple steps completed successfully in stateless mode")
             print(f"Total reward: {total_reward:.4f}")
 
         except Exception as e:
@@ -301,18 +316,23 @@ class TestProgramEvolutionEnvWithMocks(unittest.TestCase):
         # Reset
         observation, info = self.env.reset()
 
-        # Take a step
-        obs, reward, terminated, truncated, step_info = self.env.step("improve code")
+        # Take a step with comprehensive prompt
+        action = self.env.create_context_prompt(
+            "improve code", current_program="def test(): pass", current_metrics={"score": 0.5}
+        )
+
+        obs, reward, terminated, truncated, step_info = self.env.step(action)
 
         # Verify mocks were called
         self.mock_llm.generate.assert_called_once()
         self.mock_exe_evaluator.evaluate.assert_called()
         self.mock_llm_evaluator.evaluate.assert_called()
 
-        # Verify state updates
-        self.assertEqual(obs["iteration"][0], 1)
+        # Verify stateless environment structure
+        self.assertIn("generated_program", obs)
+        self.assertIn("generation_success", obs)
         self.assertIsInstance(reward, (int, float))
-        self.assertIn("new_metrics", step_info)
+        self.assertIn("metrics", step_info)  # Changed from "new_metrics"
 
     def test_error_handling_in_generation(self):
         """Test error handling when LLM generation fails"""
@@ -341,14 +361,17 @@ class TestProgramEvolutionEnvWithMocks(unittest.TestCase):
         # Step should handle the error gracefully
         obs, reward, terminated, truncated, step_info = self.env.step("test action")
 
-        # Evaluation failure results in error metrics, not direct penalty
-        # Check that error metrics were generated
-        self.assertIn("new_metrics", step_info)
-        self.assertEqual(step_info["new_metrics"]["error"], 1.0)
-        self.assertEqual(step_info["new_metrics"]["score"], 0.0)
+        # Evaluation failure results in error metrics
+        # Check that error metrics were generated in step_info["metrics"]
+        self.assertIn("metrics", step_info)
+        self.assertEqual(step_info["metrics"]["error"], 1.0)
+        self.assertEqual(step_info["metrics"]["score"], 0.0)
 
-        # Reward should include error penalty
-        self.assertIn("error_penalty", step_info["reward_components"])
+        # Reward should be the average of error metrics (0.5) plus error penalty (-0.1) = 0.4
+        expected_reward = (
+            0.5 * self.env.reward_scale + self.env.penalty_for_errors
+        )  # 0.5 - 0.1 = 0.4
+        self.assertEqual(reward, expected_reward)
 
 
 if __name__ == "__main__":

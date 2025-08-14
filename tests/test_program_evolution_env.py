@@ -1,242 +1,124 @@
-"""
-Tests for ProgramEvolutionEnv
-
-Simple tests with real components only (no mocks).
-"""
+"""Tests for program_evolution_env.py"""
 
 import unittest
-import numpy as np
+from unittest.mock import AsyncMock, MagicMock
 
 from openevolve.environment.program_evolution_env import ProgramEvolutionEnv
-from openevolve.environment.evaluators import ExecutionEvaluator, LLMEvaluator
-from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.llm.llm_ensemble import EnsembleLLM
 
 
 class TestProgramEvolutionEnv(unittest.TestCase):
-    """Test the Program Evolution Environment with real components"""
-
     def setUp(self):
-        """Set up test fixtures"""
-        # Create real LLM for testing
-        self.llm = EnsembleLLM([OpenAILLM()])
+        """Set up test environment"""
+        # Mock LLM
+        self.mock_llm = MagicMock()
+        self.mock_llm.generate = AsyncMock(return_value="def test():\n    return 'improved'")
 
-        # Create execution evaluator with circle_packing critic
-        self.exe_evaluator = ExecutionEvaluator(
-            critic_program_path="/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+        # Mock evaluator
+        self.mock_evaluator = MagicMock()
+        self.mock_evaluator.evaluate = AsyncMock(
+            return_value={"score": 0.85, "execution_time": 0.1}
         )
 
-        # Create LLM evaluator
-        self.llm_evaluator = LLMEvaluator(self.llm)
+        # Mock reward extractor
+        def mock_reward_extractor(info):
+            return info.get("raw_metrics", {}).get("score", 0.0)
 
         # Create environment
         self.env = ProgramEvolutionEnv(
-            llm=self.llm,
-            exe_evaluator=self.exe_evaluator,
-            llm_evaluator=self.llm_evaluator,
+            llm=self.mock_llm,
+            exe_evaluator=self.mock_evaluator,
+            llm_evaluator=None,
+            reward_extractor=mock_reward_extractor,
         )
 
-    def test_environment_creation(self):
-        """Test that environment can be created properly"""
-        self.assertIsInstance(self.env, ProgramEvolutionEnv)
-        self.assertEqual(self.env.llm, self.llm)
-        self.assertEqual(self.env.exe_evaluator, self.exe_evaluator)
-        self.assertEqual(self.env.llm_evaluator, self.llm_evaluator)
-        self.assertEqual(self.env.language, "python")
+    def test_init(self):
+        """Test environment initialization"""
+        self.assertIsNotNone(self.env.llm)
+        self.assertIsNotNone(self.env.exe_evaluator)
+        self.assertIsNone(self.env.llm_evaluator)
+        self.assertIsNotNone(self.env.reward_extractor)
 
     def test_action_space(self):
-        """Test action space is properly configured"""
+        """Test action space is Text"""
         from gymnasium.spaces import Text
 
         self.assertIsInstance(self.env.action_space, Text)
 
     def test_observation_space(self):
-        """Test observation space is properly configured"""
+        """Test observation space is Dict"""
         from gymnasium.spaces import Dict
 
-        obs_space = self.env.observation_space
-        self.assertIsInstance(obs_space, Dict)
+        self.assertIsInstance(self.env.observation_space, Dict)
 
-        # Try to sample from the space to verify it's valid
-        try:
-            sample = obs_space.sample()
-            self.assertIsInstance(sample, dict)
-        except:
-            # Some spaces might not be fully sampleable, that's okay
-            pass
-
-    def test_reset_with_default_program(self):
-        """Test environment reset with default initial program"""
-        try:
-            observation, info = self.env.reset()
-
-            # Check observation structure (stateless mode)
-            self.assertIn("generated_program", observation)
-            self.assertIn("evaluation_metrics", observation)
-            self.assertIn("has_errors", observation)
-            self.assertIn("generation_success", observation)
-
-            # Check info
-            self.assertIn("episode", info)
-            self.assertIn("mode", info)
-            self.assertEqual(info["mode"], "stateless")
-
-            print(f"Reset successful in stateless mode")
-
-        except Exception as e:
-            self.skipTest(f"Environment reset failed (likely due to API/Ray unavailable): {e}")
-
-    def test_step_execution(self):
-        """Test a complete step in the environment"""
-        try:
-            # Reset environment
-            observation, info = self.env.reset()
-
-            # Create a comprehensive prompt using the helper method
-            action = ProgramEvolutionEnv.create_context_prompt(
-                base_instruction="Improve this code by adding error handling and documentation",
-                current_program="def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
-                current_metrics={"score": 0.5, "efficiency": 0.3},
-            )
-
-            new_obs, reward, terminated, truncated, step_info = self.env.step(action)
-
-            # Check observation structure
-            self.assertIn("generated_program", new_obs)
-            self.assertIn("evaluation_metrics", new_obs)
-            self.assertIn("has_errors", new_obs)
-            self.assertIn("generation_success", new_obs)
-
-            # Check reward is numeric
-            self.assertIsInstance(reward, (int, float))
-
-            # Check step info
-            self.assertIn("raw_metrics", step_info)
-            self.assertIn("step_time", step_info)
-            self.assertIn("generation_success", step_info)
-            self.assertIn("evaluation_success", step_info)
-
-            print(f"Step executed successfully")
-            print(f"Reward: {reward}")
-            print(f"New program length: {len(new_obs['generated_program'])}")
-            print(f"Raw metrics: {step_info['raw_metrics']}")
-
-        except Exception as e:
-            self.skipTest(f"Step execution failed: {e}")
-
-    def test_multiple_steps(self):
-        """Test multiple steps in sequence"""
-        try:
-            # Reset environment
-            observation, info = self.env.reset()
-
-            # Take multiple steps
-            actions = [
-                "Add type hints to improve code quality: def hello(): return 'world'",
-                "Add proper error handling: def divide(a, b): return a / b",
-                "Optimize for better performance: def fibonacci(n): return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)",
-            ]
-
-            total_reward = 0
-            for i, action in enumerate(actions):
-                obs, reward, terminated, truncated, step_info = self.env.step(action)
-                total_reward += reward
-
-                # Check that we get valid results
-                self.assertIn("generated_program", obs)
-                self.assertIn("raw_metrics", step_info)
-
-                print(f"Step {i+1}: reward={reward:.4f}, total={total_reward:.4f}")
-
-            print(f"Multiple steps completed successfully")
-            print(f"Total reward: {total_reward:.4f}")
-
-        except Exception as e:
-            self.skipTest(f"Multiple steps failed: {e}")
-
-    def test_metrics_to_array_conversion(self):
-        """Test conversion of metrics dict to fixed-size array"""
-        # Test with normal metrics
-        metrics = {"score": 0.8, "accuracy": 0.9, "speed": 0.7}
-        array = self.env._metrics_to_array(metrics)
-
-        self.assertEqual(len(array), 10)
-        self.assertEqual(array[0], 0.8)
-        self.assertEqual(array[1], 0.9)
-        self.assertEqual(array[2], 0.7)
-        self.assertEqual(array[3], 0.0)  # Padding
-
-        # Test with empty metrics
-        empty_array = self.env._metrics_to_array({})
-        self.assertTrue(np.allclose(empty_array, np.zeros(10)))
-
-        # Test with too many metrics (should truncate)
-        many_metrics = {f"metric_{i}": float(i) for i in range(15)}
-        truncated_array = self.env._metrics_to_array(many_metrics)
-        self.assertEqual(len(truncated_array), 10)
-
-    def test_reward_extraction(self):
-        """Test reward extraction with custom function"""
-
-        def custom_reward_function(info):
-            raw_metrics = info.get("raw_metrics", {})
-            if not info.get("generation_success", False):
-                return -1.0
-            # Return average of metrics
-            if raw_metrics:
-                values = [v for v in raw_metrics.values() if isinstance(v, (int, float))]
-                return sum(values) / len(values) if values else 0.0
-            return 0.0
-
-        # Create environment with custom reward function
-        custom_env = ProgramEvolutionEnv(
-            llm=self.llm, exe_evaluator=self.exe_evaluator, reward_extractor=custom_reward_function
+    def test_create_prompt(self):
+        """Test the static create_prompt method"""
+        prompt = ProgramEvolutionEnv.create_prompt(
+            instruction="Fix the bug",
+            current_program="def add(a, b):\n    return a - b",
+            current_score=0.5,
         )
 
-        try:
-            custom_env.reset()
-            obs, reward, terminated, truncated, info = custom_env.step("def test(): return 42")
+        self.assertIn("Fix the bug", prompt)
+        self.assertIn("def add(a, b):", prompt)
+        self.assertIn("Current Score: 0.5", prompt)
 
-            # Reward should be calculated using our custom function
-            self.assertIsInstance(reward, (int, float))
-            expected_reward = custom_reward_function(info)
-            self.assertEqual(reward, expected_reward)
+    def test_step_basic(self):
+        """Test basic step functionality"""
+        # Create a simple prompt
+        action = "Improve this function: def add(a, b): return a + b"
 
-        except Exception as e:
-            self.skipTest(f"Custom reward test failed: {e}")
+        # Run step
+        observation, reward, terminated, truncated, info = self.env.step(action)
 
-    def test_create_context_prompt(self):
-        """Test the static context prompt creation method"""
-        prompt = ProgramEvolutionEnv.create_context_prompt(
-            base_instruction="Improve this code",
-            current_program="def hello(): return 'world'",
-            current_metrics={"score": 0.5, "accuracy": 0.8},
-            parent_program="def hello(): pass",
-            parent_metrics={"score": 0.3},
-        )
+        # Verify calls
+        self.mock_llm.generate.assert_called()
+        self.mock_evaluator.evaluate.assert_called()
 
-        self.assertIn("Improve this code", prompt)
-        self.assertIn("def hello(): return 'world'", prompt)
-        self.assertIn("Current Score: 0.65", prompt)  # (0.5 + 0.8) / 2
-        self.assertIn("Previous Score: 0.30", prompt)
-        self.assertIn("def hello(): pass", prompt)
+        # Verify outputs
+        self.assertIsInstance(observation, dict)
+        self.assertIn("generated_program", observation)
+        self.assertIn("evaluation_metrics", observation)
+        self.assertIn("success", observation)
+
+        self.assertIsInstance(reward, (int, float))
+        self.assertIsInstance(terminated, bool)
+        self.assertIsInstance(truncated, bool)
+        self.assertIsInstance(info, dict)
+
+    def test_default_reward_extractor(self):
+        """Test the default reward extractor"""
+        env = ProgramEvolutionEnv(llm=self.mock_llm, exe_evaluator=self.mock_evaluator)
+
+        # Test with score in raw_metrics (average of 0.7 and 0.3 = 0.5)
+        info = {"raw_metrics": {"score": 0.7, "other": 0.3}}
+        reward = env.reward_extractor(info)
+        self.assertEqual(reward, 0.5)
+
+        # Test without score (only has 'other': 0.3)
+        info = {"raw_metrics": {"other": 0.3}}
+        reward = env.reward_extractor(info)
+        self.assertEqual(reward, 0.3)
+
+    def test_reset(self):
+        """Test reset functionality"""
+        observation, info = self.env.reset()
+
+        self.assertIsInstance(observation, dict)
+        self.assertIn("generated_program", observation)
+        self.assertIn("evaluation_metrics", observation)
+        self.assertIn("success", observation)
+
+        self.assertIsInstance(info, dict)
 
     def test_render(self):
         """Test rendering functionality"""
-        try:
-            # Reset and step once
-            self.env.reset()
-            self.env.step("Improve this code: def test(): pass")
+        # Should not raise any errors
+        result = self.env.render()
+        self.assertIsNone(result)
 
-            # Test render (should not raise exception)
-            self.env.render(mode="human")
-
-        except Exception as e:
-            self.skipTest(f"Render test failed: {e}")
-
-    def test_environment_close(self):
-        """Test environment cleanup"""
-        # This should not raise an exception
+    def test_close(self):
+        """Test close functionality"""
+        # Should not raise any errors
         self.env.close()
 
 

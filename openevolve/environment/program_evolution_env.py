@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Callable
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -28,11 +28,11 @@ class ProgramEvolutionEnv(gym.Env):
     This environment doesn't maintain state between steps. Instead:
     - All necessary context (history, metrics, programs) is provided via the action prompt
     - The observation only contains the immediate result of the last action
-    - Reward is calculated based on information provided in the action
+    - Reward is calculated using a user-provided reward extraction function
 
     Action Space: Complete prompt containing all context and instructions
     Observation Space: Current program and evaluation results
-    Reward: Improvement based on metrics provided in the action
+    Reward: Calculated using user-provided reward extraction function
     """
 
     def __init__(
@@ -40,13 +40,10 @@ class ProgramEvolutionEnv(gym.Env):
         llm: LLMInterface,
         exe_evaluator: ExecutionEvaluator,
         llm_evaluator: Optional[LLMEvaluator] = None,
+        reward_extractor: Optional[Callable[[Dict[str, Any]], float]] = None,
         language: str = "python",
-        max_prompt_length: int = 50000,  # Increased for comprehensive context
+        max_prompt_length: int = 50000,
         max_program_length: int = 50000,
-        reward_scale: float = 1.0,
-        improvement_bonus: float = 0.1,
-        diversity_bonus: float = 0.0,
-        penalty_for_errors: float = -0.1,
     ):
         """
         Initialize the Stateless Program Evolution Environment
@@ -55,13 +52,10 @@ class ProgramEvolutionEnv(gym.Env):
             llm: Language model for program generation
             exe_evaluator: Execution evaluator for program assessment
             llm_evaluator: Optional LLM evaluator for additional assessment
+            reward_extractor: Function that takes info dict and returns reward
             language: Programming language (default: python)
             max_prompt_length: Maximum length of comprehensive prompt actions
             max_program_length: Maximum length of program code
-            reward_scale: Scale factor for rewards
-            improvement_bonus: Bonus for any improvement
-            diversity_bonus: Bonus for diverse solutions
-            penalty_for_errors: Penalty for syntax/runtime errors
         """
         super().__init__()
 
@@ -70,12 +64,7 @@ class ProgramEvolutionEnv(gym.Env):
         self.exe_evaluator = exe_evaluator
         self.llm_evaluator = llm_evaluator
         self.language = language
-
-        # Reward configuration
-        self.reward_scale = reward_scale
-        self.improvement_bonus = improvement_bonus
-        self.diversity_bonus = diversity_bonus
-        self.penalty_for_errors = penalty_for_errors
+        self.reward_extractor = reward_extractor or self._default_reward_extractor
 
         # Action space: Comprehensive prompts containing all context
         self.action_space = spaces.Text(max_length=max_prompt_length)
@@ -87,13 +76,10 @@ class ProgramEvolutionEnv(gym.Env):
                 "evaluation_metrics": spaces.Box(
                     low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
                 ),
-                "has_errors": spaces.Discrete(2),  # 0: no errors, 1: has errors
-                "generation_success": spaces.Discrete(2),  # 0: failed, 1: success
+                "has_errors": spaces.Discrete(2),
+                "generation_success": spaces.Discrete(2),
             }
         )
-
-        # No persistent internal state - environment is stateless
-        # All context must be provided through the action prompt
 
         # Episode tracking (minimal)
         self.episode_count = 0
@@ -102,199 +88,101 @@ class ProgramEvolutionEnv(gym.Env):
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """
-        Reset the environment for a new episode
-
-        Args:
-            seed: Random seed (not used currently)
-            options: Reset options (not used in stateless mode)
-
-        Returns:
-            observation: Empty initial observation (no state maintained)
-            info: Episode information
-        """
+        """Reset the environment for a new episode"""
         super().reset(seed=seed)
-
-        # Increment episode counter
         self.episode_count += 1
 
         logger.info(f"Environment reset for new episode {self.episode_count} (stateless mode)")
 
-        # Return empty observation - no initial state
         observation = self._get_empty_observation()
         info = {"episode": self.episode_count, "mode": "stateless"}
 
         return observation, info
 
     def step(self, action: str) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
-        """
-        Execute one step in the environment using a comprehensive prompt
-
-        The action should be a complete prompt that contains:
-        - Instructions for code generation/modification
-        - Current program context and history
-        - Previous metrics and performance data
-        - Any other context needed for the LLM
-
-        Args:
-            action: Complete prompt containing all necessary context
-
-        Returns:
-            observation: New program and evaluation results
-            reward: Reward calculated from metrics (if provided in context)
-            terminated: Whether episode is finished (always False in stateless mode)
-            truncated: Whether episode was truncated (always False)
-            info: Additional information about the step
-        """
+        """Execute one step in the environment using a comprehensive prompt"""
         self.total_steps += 1
-
         step_start_time = time.time()
 
-        # Parse context from the action prompt if available
-        context = self._parse_action_context(action)
+        # Generate new program
+        new_program = self._generate_program(action)
+        generation_success = bool(new_program and not new_program.startswith("# Error"))
 
-        # Generate new program using LLM with the complete prompt
-        try:
-            new_program = self._generate_program(action)
-            logger.debug(f"Generated new program (length: {len(new_program)})")
-            generation_success = True
-        except Exception as e:
-            logger.error(f"Error generating program: {e}")
-            # Return empty observation with penalty
-            observation = self._get_empty_observation()
-            reward = self.penalty_for_errors
-            info = {
-                "error": str(e),
-                "step": "generation",
-                "step_time": time.time() - step_start_time,
-                "generation_success": False,
-            }
-            return observation, reward, False, False, info
+        if not generation_success:
+            return self._handle_generation_error(new_program, step_start_time)
 
-        # Check if generation returned an error string
-        if new_program.startswith("# Error generating code:"):
-            logger.error("LLM generation returned error")
-            observation = self._get_empty_observation()
-            reward = self.penalty_for_errors
-            info = {
-                "error": new_program,
-                "step": "generation",
-                "step_time": time.time() - step_start_time,
-                "generation_success": False,
-            }
-            return observation, reward, False, False, info
+        # Evaluate the generated program
+        raw_metrics = self._evaluate_program(new_program)
+        evaluation_success = bool(raw_metrics)
 
-        # Evaluate new program
-        try:
-            new_metrics = self._evaluate_program(new_program)
-            logger.debug(f"Evaluated program with metrics: {new_metrics}")
-            evaluation_success = True
-        except Exception as e:
-            logger.error(f"Error evaluating program: {e}")
-            # Return observation with generated program but no metrics
-            observation = {
-                "generated_program": new_program,
-                "evaluation_metrics": np.zeros(10, dtype=np.float32),
-                "has_errors": 1,
-                "generation_success": 1,  # Generation succeeded, evaluation failed
-            }
-            reward = self.penalty_for_errors
-            info = {
-                "error": str(e),
-                "step": "evaluation",
-                "step_time": time.time() - step_start_time,
-                "generation_success": True,
-                "evaluation_success": False,
-                "metrics": {"error": 1.0, "score": 0.0},  # Add metrics for test compatibility
-                "reward_calculation": {"error_only": self.penalty_for_errors},
-                "context_parsed": context is not None,
-            }
-            return observation, reward, False, False, info
+        if not evaluation_success:
+            return self._handle_evaluation_error(new_program, step_start_time)
 
-        # Calculate reward based on context and new metrics
-        reward = self._calculate_reward_from_context(new_metrics, context)
-
-        # Create observation with results
+        # Create successful observation
         observation = {
             "generated_program": new_program,
-            "evaluation_metrics": self._metrics_to_array(new_metrics),
-            "has_errors": int("error" in new_metrics and new_metrics.get("error", 0) > 0),
-            "generation_success": int(generation_success),
+            "evaluation_metrics": self._metrics_to_array(raw_metrics),
+            "has_errors": int("error" in raw_metrics and raw_metrics.get("error", 0) > 0),
+            "generation_success": 1,
         }
 
-        # Episodes don't terminate in stateless mode - each step is independent
-        terminated = False
-        truncated = False
-
-        # Info dictionary
+        # Info dictionary with raw evaluation results
         info = {
-            "metrics": new_metrics,
-            "reward_calculation": self._get_reward_explanation(new_metrics, context),
+            "raw_metrics": raw_metrics,
             "step_time": time.time() - step_start_time,
-            "generation_success": generation_success,
+            "generation_success": True,
             "evaluation_success": True,
-            "context_parsed": context is not None,
         }
 
-        current_score = safe_numeric_average(new_metrics)
+        # Calculate reward using the provided extractor function
+        reward = self.reward_extractor(info)
+
+        current_score = safe_numeric_average(raw_metrics)
         logger.info(
             f"Step {self.total_steps}: reward={reward:.4f}, "
             f"score={current_score:.4f}, "
-            f"success={generation_success}"
+            f"success=True"
         )
 
-        return observation, reward, terminated, truncated, info
+        return observation, reward, False, False, info
 
-    def _parse_action_context(self, action: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse context information from the action prompt
+    def _handle_generation_error(self, error_program: str, step_start_time: float):
+        """Handle generation errors without exceptions"""
+        observation = self._get_empty_observation()
+        info = {
+            "error": error_program or "Generation failed",
+            "step": "generation",
+            "step_time": time.time() - step_start_time,
+            "generation_success": False,
+            "evaluation_success": False,
+            "raw_metrics": {},
+        }
+        reward = self.reward_extractor(info)
+        return observation, reward, False, False, info
 
-        Looks for structured context in the prompt like:
-        - Current score: X.XX
-        - Previous score: X.XX
-        - Metrics: {...}
+    def _handle_evaluation_error(self, new_program: str, step_start_time: float):
+        """Handle evaluation errors without exceptions"""
+        observation = {
+            "generated_program": new_program,
+            "evaluation_metrics": np.zeros(10, dtype=np.float32),
+            "has_errors": 1,
+            "generation_success": 1,
+        }
+        info = {
+            "error": "Evaluation failed",
+            "step": "evaluation",
+            "step_time": time.time() - step_start_time,
+            "generation_success": True,
+            "evaluation_success": False,
+            "raw_metrics": {"error": 1.0, "score": 0.0},
+        }
+        reward = self.reward_extractor(info)
+        return observation, reward, False, False, info
 
-        Args:
-            action: The complete prompt containing context
-
-        Returns:
-            Dictionary with parsed context or None if no context found
-        """
-        context = {}
-
-        # Try to extract current score
-        current_score_match = re.search(
-            r"current[_\s]*score:?\s*([0-9]*\.?[0-9]+)", action, re.IGNORECASE
-        )
-        if current_score_match:
-            context["current_score"] = float(current_score_match.group(1))
-
-        # Try to extract previous/parent score
-        parent_score_match = re.search(
-            r"(?:previous|parent)[_\s]*score:?\s*([0-9]*\.?[0-9]+)", action, re.IGNORECASE
-        )
-        if parent_score_match:
-            context["parent_score"] = float(parent_score_match.group(1))
-
-        # Try to extract metrics section
-        metrics_match = re.search(r"metrics:?\s*\{([^}]+)\}", action, re.IGNORECASE)
-        if metrics_match:
-            try:
-                # Simple parsing of key: value pairs
-                metrics_str = metrics_match.group(1)
-                metrics = {}
-                for line in metrics_str.split(","):
-                    if ":" in line:
-                        key, value = line.split(":", 1)
-                        try:
-                            metrics[key.strip()] = float(value.strip())
-                        except ValueError:
-                            pass
-                context["metrics"] = metrics
-            except:
-                pass
-
-        return context if context else None
+    def _default_reward_extractor(self, info: Dict[str, Any]) -> float:
+        """Default reward extractor that returns the average of raw metrics"""
+        raw_metrics = info.get("raw_metrics", {})
+        return safe_numeric_average(raw_metrics)
 
     def _get_empty_observation(self) -> Dict[str, Any]:
         """Get an empty observation for error cases"""
@@ -305,213 +193,111 @@ class ProgramEvolutionEnv(gym.Env):
             "generation_success": 0,
         }
 
-    def _calculate_reward_from_context(
-        self, current_metrics: Dict[str, float], context: Optional[Dict[str, Any]]
-    ) -> float:
-        """
-        Calculate reward based on current metrics and context from the prompt
-
-        Args:
-            current_metrics: Metrics from evaluating the generated program
-            context: Context parsed from the action prompt
-
-        Returns:
-            Calculated reward
-        """
-        current_score = safe_numeric_average(current_metrics)
-
-        # If we have context with previous score, calculate improvement
-        if context and "parent_score" in context:
-            parent_score = context["parent_score"]
-            improvement = current_score - parent_score
-
-            # Base reward is improvement
-            reward = improvement * self.reward_scale
-
-            # Add improvement bonus for any positive change
-            if improvement > 0:
-                reward += self.improvement_bonus
-
-        elif context and "current_score" in context:
-            # Use provided current score if available
-            reward = context["current_score"] * self.reward_scale
-        else:
-            # No context - use current score as reward
-            reward = current_score * self.reward_scale
-
-        # Add penalty for errors
-        if current_metrics.get("error", 0) > 0:
-            reward += self.penalty_for_errors
-
-        return reward
-
-    def _get_reward_explanation(
-        self, current_metrics: Dict[str, float], context: Optional[Dict[str, Any]]
-    ) -> Dict[str, float]:
-        """Get detailed explanation of reward calculation"""
-        current_score = safe_numeric_average(current_metrics)
-        explanation = {"current_score": current_score}
-
-        if context and "parent_score" in context:
-            parent_score = context["parent_score"]
-            improvement = current_score - parent_score
-            explanation.update(
-                {
-                    "parent_score": parent_score,
-                    "improvement": improvement,
-                    "improvement_reward": improvement * self.reward_scale,
-                }
-            )
-
-            if improvement > 0:
-                explanation["improvement_bonus"] = self.improvement_bonus
-
-        if current_metrics.get("error", 0) > 0:
-            explanation["error_penalty"] = self.penalty_for_errors
-
-        return explanation
-
     def _generate_program(self, prompt: str) -> str:
         """Generate new program using LLM with the given prompt"""
-        # Run async LLM call in sync context
+        # Get or create event loop
+        loop = self._get_event_loop()
+        if not loop:
+            return "# Error: Could not create event loop"
+
+        # Call LLM
+        response = self._run_async_safe(loop, self.llm.generate(prompt))
+        if not response:
+            return "# Error: No response from LLM"
+
+        # Handle ensemble LLM returning a list
+        if isinstance(response, list):
+            response = response[0] if response else ""
+
+        # Extract code from response
+        return self._extract_code_from_response(response)
+
+    def _evaluate_program(self, program: str) -> Dict[str, float]:
+        """Evaluate program using evaluators"""
+        # Get or create event loop
+        loop = self._get_event_loop()
+        if not loop:
+            return {"error": 1.0, "score": 0.0}
+
+        # Use execution evaluator
+        result = self._run_async_safe(
+            loop, self.exe_evaluator.evaluate(code=program, language=self.language)
+        )
+
+        if not result or not isinstance(result, dict):
+            return {"error": 1.0, "score": 0.0}
+
+        # Add LLM evaluator results if available
+        if self.llm_evaluator:
+            llm_result = self._run_async_safe(
+                loop, self.llm_evaluator.evaluate(code=program, language=self.language)
+            )
+            if llm_result and isinstance(llm_result, dict):
+                # Combine results
+                for key, value in llm_result.items():
+                    if key in result:
+                        result[f"llm_{key}"] = value
+                    else:
+                        result[key] = value
+
+        # Clean and convert metrics
+        return self._clean_metrics(result)
+
+    def _get_event_loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        """Get or create event loop safely"""
         try:
-            # Create event loop if none exists
+            return asyncio.get_event_loop()
+        except RuntimeError:
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
+                return loop
+            except Exception:
+                return None
 
-            response = loop.run_until_complete(self.llm.generate(prompt))
-
-            # Handle ensemble LLM returning a list
-            if isinstance(response, list):
-                response = response[0] if response else ""
-
+    def _run_async_safe(self, loop: asyncio.AbstractEventLoop, coro) -> Any:
+        """Run async coroutine safely, return None on error"""
+        try:
+            return loop.run_until_complete(coro)
         except Exception as e:
-            logger.error(f"LLM generation failed: {e}")
-            return f"# Error generating code: {e}"
+            logger.error(f"Async operation failed: {e}")
+            return None
 
-        # Extract code from response (simple heuristic)
-        if isinstance(response, str) and "```" in response:
-            # Extract code block
+    def _extract_code_from_response(self, response: str) -> str:
+        """Extract code from LLM response"""
+        if not isinstance(response, str):
+            return str(response).strip() if response else "# No response"
+
+        # Extract code block if present
+        if "```" in response:
             code_start = response.find("```")
             code_end = response.find("```", code_start + 3)
             if code_end != -1:
                 code_block = response[code_start + 3 : code_end]
-                # Remove language identifier if present
                 lines = code_block.strip().split("\n")
+                # Remove language identifier if present
                 if lines and lines[0].strip() in ["python", "py", "java", "cpp", "c++"]:
                     return "\n".join(lines[1:])
                 return code_block.strip()
 
-        return str(response).strip() if response else "# No response from LLM"
+        return response.strip()
 
-    def _evaluate_program(self, program: str) -> Dict[str, float]:
-        """Evaluate program using evaluators"""
-        try:
-            # Create event loop if none exists
+    def _clean_metrics(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """Convert metrics to clean float dict"""
+        clean_metrics = {}
+        for key, value in metrics.items():
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Use execution evaluator
-            result = loop.run_until_complete(
-                self.exe_evaluator.evaluate(code=program, language=self.language)
-            )
-
-            # If we have an LLM evaluator, combine results
-            if self.llm_evaluator:
-                try:
-                    llm_result = loop.run_until_complete(
-                        self.llm_evaluator.evaluate(code=program, language=self.language)
-                    )
-                    # Combine results (simple averaging for overlapping keys)
-                    for key, value in llm_result.items():
-                        if key in result:
-                            result[f"llm_{key}"] = value
-                        else:
-                            result[key] = value
-                except Exception as e:
-                    logger.warning(f"LLM evaluation failed: {e}")
-
-            # Ensure we always have numeric metrics
-            if not result or not isinstance(result, dict):
-                return {"error": 1.0, "score": 0.0}
-
-            # Convert all values to float where possible
-            clean_metrics = {}
-            for key, value in result.items():
-                try:
-                    clean_metrics[key] = float(value)
-                except (ValueError, TypeError):
-                    if key == "error" or "error" in key.lower():
-                        clean_metrics[key] = 1.0
-                    else:
-                        clean_metrics[key] = 0.0
-
-            return clean_metrics
-
-        except Exception as e:
-            logger.error(f"Evaluation failed: {e}")
-            return {"error": 1.0, "score": 0.0}
-
-    def _calculate_reward(
-        self, current_metrics: Dict[str, float], parent_metrics: Dict[str, float]
-    ) -> float:
-        """Calculate reward based on improvement (backward compatibility)"""
-        if not parent_metrics:
-            return safe_numeric_average(current_metrics) * self.reward_scale
-
-        current_score = safe_numeric_average(current_metrics)
-        parent_score = safe_numeric_average(parent_metrics)
-        improvement = current_score - parent_score
-
-        reward = improvement * self.reward_scale
-
-        if improvement > 0:
-            reward += self.improvement_bonus
-
-        if current_metrics.get("error", 0) > 0:
-            reward += self.penalty_for_errors
-
-        return reward
-
-    def _get_reward_components(
-        self, current_metrics: Dict[str, float], parent_metrics: Dict[str, float]
-    ) -> Dict[str, float]:
-        """Get detailed breakdown of reward components (backward compatibility)"""
-        if not parent_metrics:
-            return {"initial_score": safe_numeric_average(current_metrics)}
-
-        current_score = safe_numeric_average(current_metrics)
-        parent_score = safe_numeric_average(parent_metrics)
-        improvement = current_score - parent_score
-
-        components = {
-            "improvement": improvement * self.reward_scale,
-            "current_score": current_score,
-            "parent_score": parent_score,
-        }
-
-        if improvement > 0:
-            components["improvement_bonus"] = self.improvement_bonus
-
-        if current_metrics.get("error", 0) > 0:
-            components["error_penalty"] = self.penalty_for_errors
-
-        return components
-
-    def _get_observation(self) -> Dict[str, Any]:
-        """Get current observation (deprecated - for backward compatibility)"""
-        logger.warning("_get_observation called in stateless mode - returning empty observation")
-        return self._get_empty_observation()
+                clean_metrics[key] = float(value)
+            except (ValueError, TypeError):
+                # Default values for non-numeric data
+                if key == "error" or "error" in key.lower():
+                    clean_metrics[key] = 1.0
+                else:
+                    clean_metrics[key] = 0.0
+        return clean_metrics
 
     def _metrics_to_array(self, metrics: Dict[str, float]) -> np.ndarray:
         """Convert metrics dict to fixed-size array"""
-        # Create fixed-size array (10 elements)
         array = np.zeros(10, dtype=np.float32)
 
         if not metrics:
@@ -521,21 +307,9 @@ class ProgramEvolutionEnv(gym.Env):
         for i, (key, value) in enumerate(metrics.items()):
             if i >= 10:
                 break
-            try:
-                array[i] = float(value)
-            except (ValueError, TypeError):
-                array[i] = 0.0
+            array[i] = float(value) if isinstance(value, (int, float)) else 0.0
 
         return array
-
-    def _get_default_initial_program(self) -> str:
-        """Get default initial program if none provided"""
-        if self.language == "python":
-            return '''def hello_world():
-    """A simple hello world function"""
-    return "Hello, World!"'''
-        else:
-            return "// Initial program"
 
     def render(self, mode="human"):
         """Render the current state (stateless mode)"""
@@ -560,21 +334,7 @@ class ProgramEvolutionEnv(gym.Env):
         history: Optional[str] = None,
         additional_context: Optional[str] = None,
     ) -> str:
-        """
-        Helper method to create a comprehensive context prompt
-
-        Args:
-            base_instruction: Base instruction for the LLM
-            current_program: Current program code
-            current_metrics: Current program metrics
-            parent_program: Parent program code
-            parent_metrics: Parent program metrics
-            history: Evolution history text
-            additional_context: Any additional context
-
-        Returns:
-            Complete prompt with embedded context
-        """
+        """Helper method to create a comprehensive context prompt"""
         prompt_parts = [base_instruction]
 
         # Add current program context

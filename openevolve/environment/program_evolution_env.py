@@ -1,29 +1,32 @@
 """
 Program Evolution Environment for OpenEvolve
 
-A simple stateless gymnasium environment for evolving programs using LLMs and evaluation.
+A stateless gymnasium environment that acts as a proxy for LLM-based program evolution.
+Combines generic evolution instructions with specific action-provided instructions.
 """
 
-import asyncio
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional, Callable, Union
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
+from openevolve.common.actions import EvolutionAction
 from openevolve.llm.llm_interface import LLMInterface
 from openevolve.utils.metrics_utils import safe_numeric_average
 from openevolve.environment.evaluators import ExecutionEvaluator, LLMEvaluator
+from openevolve.environment.prompts import PromptBuilder
+from openevolve.environment.code_generation import CodeGenerator
+from openevolve.environment.evaluation import CodeEvaluator
 
 
 class ProgramEvolutionEnv(gym.Env):
     """
-    Simple stateless gymnasium environment for program evolution.
+    Stateless gymnasium environment acting as a proxy for LLM-based program evolution.
 
-    - Takes prompts as actions
-    - Generates code with LLM
-    - Evaluates code with evaluators
-    - Returns raw metrics in info
-    - User defines reward logic
+    - Acts as proxy between actions and LLM backend
+    - Combines generic evolution instructions with action-specific instructions
+    - Handles LLM communication and response parsing
+    - Evaluates generated code and returns metrics
     """
 
     def __init__(
@@ -33,6 +36,8 @@ class ProgramEvolutionEnv(gym.Env):
         llm_evaluator: Optional[LLMEvaluator] = None,
         reward_extractor: Optional[Callable[[Dict[str, Any]], float]] = None,
         language: str = "python",
+        max_code_length: int = 20480,
+        default_mode: str = "full_rewrite",
     ):
         super().__init__()
 
@@ -41,9 +46,27 @@ class ProgramEvolutionEnv(gym.Env):
         self.llm_evaluator = llm_evaluator
         self.language = language
         self.reward_extractor = reward_extractor or self._default_reward
+        self.max_code_length = max_code_length
+        self.default_mode = default_mode
 
-        # Simple action/observation spaces
-        self.action_space = spaces.Text(max_length=50000)
+        # Initialize specialized components
+        self.prompt_builder = PromptBuilder(language)
+        self.code_generator = CodeGenerator(llm, language, max_code_length)
+        self.code_evaluator = CodeEvaluator(exe_evaluator, llm_evaluator, language)
+
+        # Action space supports structured actions
+        self.action_space = spaces.Dict(
+            {
+                "instruction": spaces.Text(max_length=10000),
+                "current_program": spaces.Text(max_length=50000),
+                "current_score": spaces.Box(low=-np.inf, high=np.inf, shape=(), dtype=np.float32),
+                "parent_program": spaces.Text(max_length=50000),
+                "previous_attempts": spaces.Text(max_length=10000),
+                "context": spaces.Text(max_length=10000),
+                "mode": spaces.Text(max_length=20),
+            }
+        )
+
         self.observation_space = spaces.Dict(
             {
                 "generated_program": spaces.Text(max_length=50000),
@@ -70,20 +93,27 @@ class ProgramEvolutionEnv(gym.Env):
         info = {"episode": self.episode_count}
         return obs, info
 
-    def step(self, action: str):
-        """Execute one step: generate code and evaluate it"""
+    def step(self, action: Union[str, Dict[str, Any], EvolutionAction]):
+        """Execute one step: process action, build prompts, generate and evaluate code"""
         self.total_steps += 1
 
-        # Generate code
+        # Process the action
         try:
-            new_program = self._generate_code(action)
+            evolution_action = self._parse_action(action)
+            system_prompt, user_prompt = self.prompt_builder.build_prompts(evolution_action)
+        except Exception as e:
+            return self._error_response(f"Action processing failed: {e}")
+
+        # Generate code via LLM proxy
+        try:
+            new_program = self.code_generator.generate_code(system_prompt, user_prompt)
             generation_ok = bool(new_program)
         except Exception as e:
             return self._error_response(f"Generation failed: {e}")
 
         # Evaluate code
         try:
-            metrics = self._evaluate_code(new_program)
+            metrics = self.code_evaluator.evaluate_code(new_program)
             evaluation_ok = bool(metrics)
         except Exception as e:
             return self._error_response(f"Evaluation failed: {e}", new_program)
@@ -99,75 +129,25 @@ class ProgramEvolutionEnv(gym.Env):
             "raw_metrics": metrics,
             "generation_success": generation_ok,
             "evaluation_success": evaluation_ok,
+            "evolution_action": evolution_action.to_dict(),
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
         }
 
         reward = self.reward_extractor(info)
         return obs, reward, False, False, info
 
-    def _generate_code(self, prompt: str) -> str:
-        """Generate code using LLM"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            response = loop.run_until_complete(self.llm.generate(prompt))
-
-            # Handle ensemble response
-            if isinstance(response, list):
-                response = response[0] if response else ""
-
-            # Extract code from response
-            if "```" in str(response):
-                start = response.find("```")
-                end = response.find("```", start + 3)
-                if end != -1:
-                    code = response[start + 3 : end]
-                    # Remove language identifier
-                    lines = code.strip().split("\n")
-                    if lines and lines[0].strip() in ["python", "py"]:
-                        return "\n".join(lines[1:])
-                    return code.strip()
-
-            return str(response).strip()
-
-        finally:
-            loop.close()
-
-    def _evaluate_code(self, code: str) -> Dict[str, float]:
-        """Evaluate code using evaluators"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            # Execution evaluation
-            result = loop.run_until_complete(
-                self.exe_evaluator.evaluate(code=code, language=self.language)
-            )
-
-            # LLM evaluation (optional)
-            if self.llm_evaluator:
-                try:
-                    llm_result = loop.run_until_complete(
-                        self.llm_evaluator.evaluate(code=code, language=self.language)
-                    )
-                    # Add LLM metrics with prefix
-                    for key, value in llm_result.items():
-                        result[f"llm_{key}"] = value
-                except Exception:
-                    pass  # LLM evaluation is optional
-
-            # Clean metrics
-            clean_metrics = {}
-            for key, value in result.items():
-                try:
-                    clean_metrics[key] = float(value)
-                except (ValueError, TypeError):
-                    clean_metrics[key] = 0.0
-
-            return clean_metrics
-
-        finally:
-            loop.close()
+    def _parse_action(self, action: Union[str, Dict[str, Any], EvolutionAction]) -> EvolutionAction:
+        """Parse different action formats into EvolutionAction"""
+        if isinstance(action, EvolutionAction):
+            return action
+        elif isinstance(action, dict):
+            return EvolutionAction.from_dict(action)
+        elif isinstance(action, str):
+            # Fallback: treat string as instruction
+            return EvolutionAction(instruction=action, mode=self.default_mode)
+        else:
+            raise ValueError(f"Unsupported action type: {type(action)}")
 
     def _error_response(self, error_msg: str, program: str = ""):
         """Create error response"""
@@ -207,17 +187,3 @@ class ProgramEvolutionEnv(gym.Env):
     def close(self):
         """Cleanup"""
         pass
-
-    @staticmethod
-    def create_prompt(instruction: str, **context) -> str:
-        """Helper to create prompts with context"""
-        parts = [instruction]
-
-        if "current_program" in context:
-            parts.append(f"\nCurrent Program:\n```\n{context['current_program']}\n```")
-        if "current_score" in context:
-            parts.append(f"\nCurrent Score: {context['current_score']}")
-        if "parent_program" in context:
-            parts.append(f"\nParent Program:\n```\n{context['parent_program']}\n```")
-
-        return "\n".join(parts)

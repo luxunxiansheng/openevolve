@@ -32,7 +32,7 @@
   },
   
   "mounts": [
-    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/openecontext/LLM-Models,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/opencontext/LLM-Models,type=bind,consistency=cached"
   ]
   
   

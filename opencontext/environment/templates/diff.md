@@ -1,14 +1,3 @@
-# diff.md — Prompt template for suggesting targeted program improvements
-
-**Placeholders used in this template**
-- `metrics`: summary of current performance metrics
-- `improvement_areas`: short list of areas needing improvement
-- `artifacts`: optional additional artifacts (logs, outputs, images)
-- `evolution_history`: prior attempts, top programs, inspirations
-- `language`: programming language identifier for the code block
-- `current_program`: the source code to analyze
-
-
 ## Current Program Information
 - Current performance metrics: {metrics}
 - Areas identified for improvement: {improvement_areas}
@@ -54,7 +43,7 @@ Example (the LLM must emit exactly this JSON — no surrounding commentary):
 ```
 
 
-### Additional rules (enforced by the caller)
+## Additional rules (enforced by the caller)
 - Each `search` string must match exactly one contiguous substring in `{current_program}`; if it does not match, the caller will reject the response.
 - Make minimal, targeted changes. Do not rename variables or change program inputs/outputs unless explicitly requested.
 - Keep `rationale` short and factual.

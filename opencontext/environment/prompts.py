@@ -7,17 +7,12 @@ from typing import List, Dict, Any
 
 from opencontext.environment.templates import template_loader
 
-
 class EvolutionMode(Enum):
     """
     Enum for evolution modes
     """
     FULL_REWRITE = "full_rewrite"
     DIFF = "diff"
-
-
-
-
 
 class EvolutionPromptBuilder:
     """

@@ -1,6 +1,6 @@
 # Real-Time Adaptive Signal Processing Algorithm Evolution
 
-This example demonstrates how to use OpenEvolve to automatically discover and optimize real-time signal processing algorithms for non-stationary time series data. The challenge involves developing algorithms that can filter volatile signals while preserving important dynamics and minimizing computational latency.
+This example demonstrates how to use OpenContext to automatically discover and optimize real-time signal processing algorithms for non-stationary time series data. The challenge involves developing algorithms that can filter volatile signals while preserving important dynamics and minimizing computational latency.
 
 ## Problem Overview
 
@@ -70,7 +70,7 @@ The initial implementation provides a foundation that evolution can improve upon
 ```
 signal_processing/
 ├── README.md              # This documentation
-├── config.yaml           # OpenEvolve configuration
+├── config.yaml           # OpenContext configuration
 ├── initial_program.py     # Initial signal processing implementation
 ├── evaluator.py          # Multi-objective evaluation system
 ├── requirements.txt       # Python dependencies
@@ -210,7 +210,7 @@ This framework can be adapted for various domains:
 
 ## Actual Evolution Results ✨
 
-**After 130 iterations, OpenEvolve achieved a major algorithmic breakthrough!**
+**After 130 iterations, OpenContext achieved a major algorithmic breakthrough!**
 
 ### Key Discoveries:
 - **🎯 Full Kalman Filter Implementation**: Complete state-space modeling with position-velocity tracking

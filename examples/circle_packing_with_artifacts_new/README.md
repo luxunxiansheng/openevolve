@@ -6,7 +6,7 @@ This example demonstrates how OpenContext can be used to tackle the challenging 
 
 ## Artifacts Enhancement
 
-This example has been enhanced to demonstrate OpenEvolve's **artifacts side-channel**, which captures detailed execution information beyond just numeric metrics. When a program fails or succeeds, the evaluator now provides rich context that gets included in the next generation's prompt.
+This example has been enhanced to demonstrate OpenContext's **artifacts side-channel**, which captures detailed execution information beyond just numeric metrics. When a program fails or succeeds, the evaluator now provides rich context that gets included in the next generation's prompt.
 
 ### What Artifacts Capture
 
@@ -313,7 +313,7 @@ Sum of radii: 2.634292402141039
 Target ratio: 0.9997314619131079 (99.97% of AlphaEvolve's result)
 ```
 
-This demonstrates that OpenEvolve can successfully reproduce the results from the AlphaEvolve paper on this mathematical optimization problem.
+This demonstrates that OpenContext can successfully reproduce the results from the AlphaEvolve paper on this mathematical optimization problem.
 
 ## Key Observations
 

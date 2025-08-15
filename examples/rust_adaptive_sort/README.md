@@ -1,6 +1,6 @@
 # Rust Adaptive Sorting Evolution
 
-This example demonstrates how to use OpenEvolve with the Rust programming language. The example focuses on evolving adaptive sorting algorithms that optimize their behavior based on input data characteristics, showcasing OpenEvolve's ability to work with compiled systems programming languages.
+This example demonstrates how to use OpenContext with the Rust programming language. The example focuses on evolving adaptive sorting algorithms that optimize their behavior based on input data characteristics, showcasing OpenContext's ability to work with compiled systems programming languages.
 
 ## Files
 
@@ -34,4 +34,4 @@ cd examples/rust_adaptive_sort
 python ../../opencontext-run.py initial_program.rs evaluator.py --config config.yaml --iterations 150
 ```
 
-This example shows how OpenEvolve can evolve algorithms in Rust by starting with a basic quicksort implementation and improving it to adaptively handle different data patterns and optimize performance across various sorting scenarios.
+This example shows how OpenContext can evolve algorithms in Rust by starting with a basic quicksort implementation and improving it to adaptively handle different data patterns and optimize performance across various sorting scenarios.

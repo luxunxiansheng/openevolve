@@ -1,6 +1,6 @@
 # Evolving Symbolic Regression with OpenContext on LLM-SRBench 🧬🔍
 
-This example demonstrates how **OpenEvolve** can be utilized to perform **symbolic regression** tasks using the **[LLM-SRBench benchmark](https://arxiv.org/pdf/2504.10415)**. It showcases OpenEvolve's capability to evolve Python code, transforming simple mathematical expressions into more complex and accurate models that fit given datasets.
+This example demonstrates how **OpenContext** can be utilized to perform **symbolic regression** tasks using the **[LLM-SRBench benchmark](https://arxiv.org/pdf/2504.10415)**. It showcases OpenContext's capability to evolve Python code, transforming simple mathematical expressions into more complex and accurate models that fit given datasets.
 
 ------
 
@@ -29,7 +29,7 @@ For each benchmark task, this script will automatically generate:
 
 - `initial_program.py`: A starting Python program, typically a simple linear model.
 - `evaluator.py`: A tailored evaluation script for the task.
-- `config.yaml`: An OpenEvolve configuration file specific to the task.
+- `config.yaml`: An OpenContext configuration file specific to the task.
 
 Run the script from your terminal:
 
@@ -39,7 +39,7 @@ python data_api.py
 
 This will create subdirectories for each benchmark task, populated with the necessary files.
 
-### 3. Run OpenEvolve
+### 3. Run OpenContext
 
 Use the provided shell script `scripts.sh` to execute OpenEvolve across the generated benchmark tasks. This script iterates through the task-specific configurations and applies the evolutionary process.
 
@@ -49,7 +49,7 @@ bash scripts.sh
 
 ### 4. Evaluate Results
 
-After OpenEvolve has completed its runs, you can evaluate the performance on different subsets of tasks (e.g., bio, chemical, physics, material). The `eval.py` script collates the results and provides a summary.
+After OpenContext has completed its runs, you can evaluate the performance on different subsets of tasks (e.g., bio, chemical, physics, material). The `eval.py` script collates the results and provides a summary.
 
 ```bash
 python eval.py <subset_path>
@@ -67,7 +67,7 @@ This script will also save a `JSON` file containing detailed results for your an
 
 ## 🌱 Algorithm Evolution: From Linear Model to Complex Expression
 
-OpenEvolve works by iteratively modifying an initial Python program to find a better-fitting mathematical expression.
+OpenContext works by iteratively modifying an initial Python program to find a better-fitting mathematical expression.
 
 ### Initial Algorithm (Example: Linear Model)
 
@@ -203,7 +203,7 @@ Notably, the core functional forms present in this ground truth equation are cap
 - The cubic $x(t)^3$ term is `params[1] * pos**3`.
 - The interaction term $t⋅x(t)$ is captured by `params[8] * pos * t_val`.
 
-The evolved code also includes terms like `params[2] * np.cos(params[3] * t_val)` (a cosine forcing term) and `params[9]` (a constant bias). These might evolve to have negligible parameter values if not supported by the data, or they could capture secondary effects or noise. The inclusion of the primary terms demonstrates OpenEvolve's strength in identifying the correct underlying structure of the equation.
+The evolved code also includes terms like `params[2] * np.cos(params[3] * t_val)` (a cosine forcing term) and `params[9]` (a constant bias). These might evolve to have negligible parameter values if not supported by the data, or they could capture secondary effects or noise. The inclusion of the primary terms demonstrates OpenContext's strength in identifying the correct underlying structure of the equation.
 
 *Note: Symbolic regression, despite such promising results, remains a very challenging task. This difficulty largely stems from the inherent complexities of inferring precise mathematical models from finite and potentially noisy training data, which provides only a partial observation of the true underlying system.*
 
@@ -240,19 +240,19 @@ For benchmark-wide comparisons and results from other methods, please refer to t
 
 **Median NMSE (OOD Test Set)**
 
-| **Domain**       | **Direct** | **LLMSR**   | **LaSR**    | **SGA**    | **OpenEvolve**  |
+| **Domain**       | **Direct** | **LLMSR**   | **LaSR**    | **SGA**    | **OpenContext**  |
 | ---------------- | ---------- | ----------- | ----------- | ---------- | --------------- |
 | Chemistry        | ~3.0 × 10² | ~5.0 × 10⁻² | ~1.0 × 10⁰  | ~1.5 × 10⁰ | **3.14 × 10⁻²** |
 | Biology          | ~1.2 × 10² | ~4.0 × 10⁰  | ~3.0 × 10¹  | ~4.0 × 10¹ | –               |
 | Physics          | ~1.0 × 10¹ | ~1.0 × 10⁻³ | ~5.0 × 10⁻² | ~1.0 × 10⁰ | **7.93 × 10⁻⁴** |
 | Material Science | ~2.5 × 10¹ | ~3.0 × 10⁰  | ~8.0 × 10⁰  | ~2.5 × 10¹ | –               |
 
-Current results for OpenEvolve are only for two subsets of LSR-Synth. We will update the comprehensive results soon.
+Current results for OpenContext are only for two subsets of LSR-Synth. We will update the comprehensive results soon.
 
 
 ------
 
 ## 🤝 Contribution
 
-This OpenEvolve example for LLM-SRBench was implemented by [**Haowei Lin**](https://linhaowei1.github.io/) from Peking University. If you encounter any issues or have questions, please feel free to reach out to Haowei via email (linhaowei@pku.edu.cn) for discussion.
+This OpenContext example for LLM-SRBench was implemented by [**Haowei Lin**](https://linhaowei1.github.io/) from Peking University. If you encounter any issues or have questions, please feel free to reach out to Haowei via email (linhaowei@pku.edu.cn) for discussion.
 

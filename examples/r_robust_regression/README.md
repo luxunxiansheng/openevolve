@@ -32,4 +32,4 @@ cd examples/r_robust_regression
 python ../../opencontext-run.py initial_program.r evaluator.py --config config.yaml --iterations 100
 ```
 
-This example shows how OpenEvolve can evolve algorithms in R by starting with a basic least squares implementation and improving it to handle outliers through various robust regression techniques.
+This example shows how OpenContext can evolve algorithms in R by starting with a basic least squares implementation and improving it to handle outliers through various robust regression techniques.

@@ -18,7 +18,11 @@ class CodeGenerator:
     including response parsing and validation.
     """
 
-    def __init__(self, llm: LLMInterface, language: str = "python", max_code_length: int = 20480):
+    def __init__(self, 
+                 llm: LLMInterface, 
+                 prompt_builder: EvolutionPromptBuilder,
+                 language: str = "python", 
+                 max_code_length: int = 20480):
         """
         Initialize code generator
 

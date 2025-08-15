@@ -1,11 +1,10 @@
 {
-  "name": "OpenEvolve Dev Container",
+  "name": "OpenContext Dev Container",
   "build": {
     "context": "..",
     "dockerfile": "../Dockerfile"
   },
   "runArgs": [
-    "--runtime=nvidia",
     "--gpus=all",
     "--shm-size=10g",
     "--network",
@@ -33,7 +32,7 @@
   },
   
   "mounts": [
-    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/openevolve/LLM-Models,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/../LLM-Models,target=/workspaces/openecontext/LLM-Models,type=bind,consistency=cached"
   ]
   
   

@@ -17,13 +17,13 @@ from opencontext.environment.evaluators.llm_evaluator import LLMEvaluator
 class TestProgramEvolutionEnv(unittest.TestCase):
     def setUp(self):
         """Set up test environment"""
-        # Use real LLM and evaluators, as in test_evaluators.py
+        # Use real LLM and evaluators
         llm = OpenAILLM(
             api_base="http://localhost:8010/v1",  # or your real endpoint
             api_key="none",  # or your real key
             name="Qwen3-14B-AWQ",  # or your real model name
         )
-    critic_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"
+        critic_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"
         exe_evaluator = ExecutionEvaluator(critic_program_path=critic_path, job_timeout_seconds=10)
         llm_evaluator = LLMEvaluator(llm)
         self.env = ProgramEvolutionEnv(

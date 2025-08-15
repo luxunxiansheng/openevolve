@@ -113,7 +113,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
         """Test evaluation with real LLM following test_llm_critic pattern"""
         # Use the same code as test_llm_critic
         with open(
-            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py",
+            "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/circle_packing.py",
             "r",
         ) as f:
             program_code = f.read()

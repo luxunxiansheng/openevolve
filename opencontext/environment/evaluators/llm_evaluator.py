@@ -10,7 +10,7 @@ import re
 from typing import Dict
 
 from opencontext.llm.llm_interface import LLMInterface
-from .base_evaluator import BaseEvaluator
+from .base_evaluator import BaseEvaluator, EvaluationResult
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class LLMEvaluator(BaseEvaluator):
         """
         self.llm = llm
 
-    async def evaluate(self, code: str, language: str = "python", **kwargs) -> Dict[str, float]:
+    async def evaluate(self, code: str, language: str = "python", **kwargs) -> EvaluationResult:
         """
         Evaluate program using LLM assessment with structured JSON responses
 
@@ -104,7 +104,8 @@ class LLMEvaluator(BaseEvaluator):
                     logger.warning(f"Error processing response {i}: {str(e)}")
                     continue
 
-            return avg_metrics
+            # Wrap averaged metrics in EvaluationResult
+            return EvaluationResult(metrics=avg_metrics)
 
         except Exception as e:
             logger.error(f"Error in LLM evaluation: {str(e)}")

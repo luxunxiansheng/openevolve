@@ -1,4 +1,8 @@
-from openevolve.critic.critic import EvaluationResult, Critic
+from opencontext.environment.evaluators.base_evaluator import BaseEvaluator, EvaluationResult
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # This part remains fixed (not evolved)
@@ -13,14 +17,15 @@ def run_packing():
 TARGET_VALUE = 2.635  # AlphaEvolve result for n=26
 
 
-class CirclePackingCritic(Critic):
+class CirclePackingCritic(BaseEvaluator):
     """
     A critic for evaluating circle packing solutions.
     This critic evaluates the solution based on the sum of radii and checks for overlaps.
     """
 
-    async def evaluate(self, **kwargs) -> EvaluationResult:
-
+    async def evaluate(
+        self, code: str = "", language: str = "python", **kwargs
+    ) -> EvaluationResult:
         try:
 
             centers = run_packing()[0]  # Get centers from the packing function
@@ -72,10 +77,19 @@ class CirclePackingCritic(Critic):
                 "combined_score": combined_score,
             }
 
-            # Importantly, log the artifacts and metrics otherwise the critic will not work
-            # This is necessary for the critic to function correctly
-            self.log_artifact(dict(artifacts))
-            self.log_metrics(dict(metrics))
+            # Importantly, log the artifacts and metrics otherwise the critic may not surface them
+            # Provide safe logging hooks in case BaseEvaluator doesn't implement them
+            try:
+                self.log_artifact(dict(artifacts))
+            except Exception:
+                logger.debug("log_artifact not implemented on BaseEvaluator; printing artifacts")
+                logger.info(f"Artifacts: {artifacts}")
+
+            try:
+                self.log_metrics(dict(metrics))
+            except Exception:
+                logger.debug("log_metrics not implemented on BaseEvaluator; printing metrics")
+                logger.info(f"Metrics: {metrics}")
 
             return EvaluationResult(metrics=metrics, artifacts=artifacts)
         except Exception as e:
@@ -93,9 +107,16 @@ class CirclePackingCritic(Critic):
                 "combined_score": 0.0,
             }
 
-            # Log the error artifacts and metrics
-            self.log_artifact(dict(artifacts))
-            self.log_metrics(dict(metrics))
+            # Log the error artifacts and metrics (safe)
+            try:
+                self.log_artifact(dict(artifacts))
+            except Exception:
+                logger.info(f"Error artifacts: {artifacts}")
+
+            try:
+                self.log_metrics(dict(metrics))
+            except Exception:
+                logger.info(f"Error metrics: {metrics}")
 
             return EvaluationResult(metrics=metrics, artifacts=artifacts)
 

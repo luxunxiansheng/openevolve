@@ -13,7 +13,7 @@ from typing import Dict
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from opencontext.environment.evaluators.base_evaluator import BaseEvaluator
+from opencontext.environment.evaluators.base_evaluator import BaseEvaluator, EvaluationResult
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class ExecutionEvaluator(BaseEvaluator):
             f"ExecutionEvaluator initialized with critic: {critic_program_path}, Ray head: {ray_head_ip}"
         )
 
-    async def evaluate(self, code: str, language: str = "python", **kwargs) -> Dict[str, float]:
+    async def evaluate(self, code: str, language: str = "python", **kwargs) -> EvaluationResult:
         """
         Evaluate program by combining it with critic program and submitting to Ray cluster.
 
@@ -106,7 +106,8 @@ class ExecutionEvaluator(BaseEvaluator):
                 metrics = self._extract_metrics_from_logs(log_output)
 
                 logger.debug(f"Extracted metrics: {metrics}")
-                return metrics
+                # Wrap metrics in EvaluationResult for backward compatibility
+                return EvaluationResult(metrics=metrics)
 
         except Exception as e:
             logger.error(f"Execution evaluation failed: {e}")
@@ -242,25 +243,3 @@ class ExecutionEvaluator(BaseEvaluator):
         except Exception as e:
             logger.error(f"Failed to extract metrics from logs: {e}")
             raise
-
-
-"""
-Execution Evaluator for OpenContext Environment
-
-Based on the exe_critic implementation with Ray cluster support for distributed execution.
-"""
-
-import logging
-import os
-import tempfile
-import time
-import uuid
-from typing import Dict
-
-from ray.job_submission import JobSubmissionClient, JobStatus
-
-from opencontext.environment.evaluators.base_evaluator import BaseEvaluator
-
-logger = logging.getLogger(__name__)
-
-# ...rest of the code from openevolve/environment/evaluators/execution_evaluator.py, with openevolve replaced by opencontext...

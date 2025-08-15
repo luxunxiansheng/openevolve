@@ -15,7 +15,7 @@ import sys
 import pickle
 
 # Import EvaluationResult for artifacts support
-from openevolve.evaluation_result import EvaluationResult
+from opencontext.evaluation_result import EvaluationResult
 
 
 class TimeoutError(Exception):

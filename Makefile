@@ -1,6 +1,6 @@
 # Variables
 PROJECT_DIR := $(shell pwd)
-DOCKER_IMAGE := openevolve
+DOCKER_IMAGE := opencontext
 VENV_DIR := $(PROJECT_DIR)/env
 PYTHON := $(VENV_DIR)/bin/python
 PIP := $(VENV_DIR)/bin/pip
@@ -34,7 +34,7 @@ install: venv
 # Run Black code formatting
 .PHONY: lint
 lint: venv
-	$(PYTHON) -m black openevolve examples tests scripts
+	$(PYTHON) -m black opencontext examples tests scripts
 
 # Run tests using the virtual environment
 .PHONY: test

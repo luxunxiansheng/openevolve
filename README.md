@@ -1,39 +1,43 @@
 # OpenEvolve
 
+# OpenContext
 An open-source evolutionary coding agent that began as a faithful implementation of AlphaEvolve and has evolved far beyond it, enabling automated scientific and algorithmic discovery.
-
+![OpenContext Logo](opencontext-logo.png)
 ![OpenEvolve Logo](openevolve-logo.png)
 
 ## Overview
 
 OpenEvolve is an evolutionary coding agent that uses Large Language Models to automatically optimize and discover algorithms through iterative improvement. Starting from the AlphaEvolve research, it incorporates advanced features for reproducibility, multi-language support, sophisticated evaluation pipelines, and integration with cutting-edge LLM optimization techniques. It serves as both a research platform for evolutionary AI and a practical tool for automated code optimization.
 
+OpenContext implements a comprehensive evolutionary coding system with:
 ### Key Features
 
-OpenEvolve implements a comprehensive evolutionary coding system with:
-
+OpenContext orchestrates a sophisticated evolutionary pipeline:
+![OpenContext Architecture](opencontext-architecture.png)
 - **Evolutionary Coding Agent**: LLM-guided evolution of entire code files (not just functions)
 - **Distributed Controller Loop**: Asynchronous pipeline coordinating LLMs, evaluators, and databases
-- **Program Database**: Storage and sampling of evolved programs with evaluation metrics
+cd opencontext
 - **Prompt Sampling**: Context-rich prompts with past programs, scores, and problem descriptions  
 - **LLM Ensemble**: Multiple language models working together for code generation
+This setup ensures OpenContext can work with any LLM provider - OpenAI, Anthropic, Google, Cohere, local models via Ollama/vLLM, or any OpenAI-compatible endpoint.
 - **Multi-objective Optimization**: Simultaneous optimization of multiple evaluation metrics
-- **Checkpoint System**: Automatic saving and resuming of evolution state
+from opencontext import OpenContext
 
-#### 🔬 **Scientific Reproducibility**
+evolve = OpenContext(
 - **Comprehensive Seeding**: Full deterministic reproduction with hash-based component isolation
 - **Default Reproducibility**: Seed=42 by default for immediate reproducible results
-- **Granular Control**: Per-component seeding for LLMs, database, and evaluation pipeline
 
 #### 🤖 **Advanced LLM Integration**  
-- **Ensemble Sophistication**: Weighted model combinations with intelligent fallback strategies
+OpenContext can also be run from the command line:
+```bash
+python opencontext-run.py path/to/initial_program.py path/to/evaluator.py --config path/to/config.yaml --iterations 1000
 - **Test-Time Compute**: Integration with [optillm](https://github.com/codelion/optillm) for Mixture of Agents (MoA) and enhanced reasoning
 - **Universal API Support**: Works with any OpenAI-compatible endpoint (Anthropic, Google, local models)
 - **Plugin Ecosystem**: Support for optillm plugins (readurls, executecode, z3_solver, etc.)
-
+python opencontext-run.py examples/function_minimization/initial_program.py \
 #### 🧬 **Evolution Algorithm Innovations**
-- **MAP-Elites Implementation**: Quality-diversity algorithm for balanced exploration/exploitation  
-- **Island-Based Evolution**: Multiple populations with periodic migration for diversity maintenance
+python opencontext-run.py examples/function_minimization/initial_program.py \
+  --checkpoint examples/function_minimization/opencontext_output/checkpoints/checkpoint_50 \
 - **Inspiration vs Performance**: Sophisticated prompt engineering separating top performers from diverse inspirations
 - **Multi-Strategy Selection**: Elite, diverse, and exploratory program sampling strategies
 - **Adaptive Feature Dimensions**: Default features (complexity & diversity) with customizable multi-dimensional search spaces

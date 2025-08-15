@@ -172,12 +172,12 @@ def run_static_export(args):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="OpenEvolve Evolution Visualizer")
+    parser = argparse.ArgumentParser(description="OpenContext Evolution Visualizer")
     parser.add_argument(
         "--path",
         type=str,
         default="examples/",
-        help="Path to openevolve_output or checkpoints folder",
+        help="Path to opencontext_output or checkpoints folder",
     )
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)

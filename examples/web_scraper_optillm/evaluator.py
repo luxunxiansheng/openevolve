@@ -23,7 +23,7 @@ def evaluate(program_path: str) -> Dict:
         program_path: Path to the program to evaluate
 
     Returns:
-        Dictionary with metrics and artifacts for OpenEvolve compatibility
+    Dictionary with metrics and artifacts for OpenContext compatibility
     """
     try:
         # Import the program
@@ -95,7 +95,7 @@ def evaluate(program_path: str) -> Dict:
         # Add detailed feedback for the LLM
         artifacts["evaluation_feedback"] = generate_feedback(metrics, artifacts)
 
-        # Return dictionary format for OpenEvolve compatibility
+        # Return dictionary format for OpenContext compatibility
         return metrics
 
     except Exception as e:

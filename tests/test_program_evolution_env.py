@@ -7,11 +7,11 @@ Tests the refactored environment with explicit Result pattern and common actions
 import unittest
 import numpy as np
 
-from openevolve.environment.program_evolution_env import ProgramEvolutionEnv
-from openevolve.common.actions import EvolutionAction
-from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.environment.evaluators.execution_evaluator import ExecutionEvaluator
-from openevolve.environment.evaluators.llm_evaluator import LLMEvaluator
+from opencontext.environment.program_evolution_env import ProgramEvolutionEnv
+from opencontext.common.actions import EvolutionAction
+from opencontext.llm.llm_openai import OpenAILLM
+from opencontext.environment.evaluators.execution_evaluator import ExecutionEvaluator
+from opencontext.environment.evaluators.llm_evaluator import LLMEvaluator
 
 
 class TestProgramEvolutionEnv(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestProgramEvolutionEnv(unittest.TestCase):
             api_key="none",  # or your real key
             name="Qwen3-14B-AWQ",  # or your real model name
         )
-        critic_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+    critic_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"
         exe_evaluator = ExecutionEvaluator(critic_program_path=critic_path, job_timeout_seconds=10)
         llm_evaluator = LLMEvaluator(llm)
         self.env = ProgramEvolutionEnv(

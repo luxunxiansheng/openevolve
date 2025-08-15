@@ -2,12 +2,12 @@ import sys
 import unittest
 
 from sympy import use
-from openevolve.critic.llm_critic import LLMCritic
-from openevolve.critic.critic import EvaluationResult
-from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.prompt.sampler import PromptSampler
-from openevolve.prompt.templates import Templates
-from openevolve.llm.llm_ensemble import EnsembleLLM
+from opencontext.critic.llm_critic import LLMCritic
+from opencontext.critic.critic import EvaluationResult
+from opencontext.llm.llm_openai import OpenAILLM
+from opencontext.prompt.sampler import PromptSampler
+from opencontext.prompt.templates import Templates
+from opencontext.llm.llm_ensemble import EnsembleLLM
 
 
 class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
@@ -20,7 +20,7 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
     async def test_evaluate_returns_evaluation_result(self):
         # Read the hello_world initial program code
         with open(
-            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py",
+            "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/circle_packing.py",
             "r",
         ) as f:
             program_code = f.read()

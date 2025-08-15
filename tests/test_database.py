@@ -6,7 +6,7 @@ import json
 import random
 from typing import Any, Dict
 from unittest.mock import patch, MagicMock
-from openevolve.database.database import ProgramDatabase, Program
+from opencontext.database.database import ProgramDatabase, Program
 
 
 class TestProgram(unittest.TestCase):

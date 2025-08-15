@@ -1,7 +1,7 @@
 import asyncio
 import unittest
-from openevolve.llm.llm_openai import OpenAILLM
-from openevolve.llm.llm_ensemble import EnsembleLLM
+from opencontext.llm.llm_openai import OpenAILLM
+from opencontext.llm.llm_ensemble import EnsembleLLM
 
 
 class TestOpenAILLM(unittest.TestCase):

@@ -214,7 +214,7 @@ prompt:
 
 # Database configuration
 database:
-  db_path: "./openevolve_output/qwen3_metal_kernel_evolution"
+  db_path: "./opencontext_output/qwen3_metal_kernel_evolution"
   population_size: 25
   archive_size: 12
   num_islands: 3

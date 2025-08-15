@@ -13,7 +13,7 @@ from typing import Dict, Any
 
 import numpy as np
 
-from openevolve.evaluation_result import EvaluationResult
+from opencontext.evaluation_result import EvaluationResult
 
 
 async def evaluate(program_path: str) -> EvaluationResult:

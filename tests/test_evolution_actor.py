@@ -3,21 +3,21 @@ import asyncio
 
 import ray
 
-from openevolve.actor.evolution_actor import EvolutionActor
-from openevolve.database.database import ProgramDatabase, Program
-from openevolve.prompt.sampler import PromptSampler
-from openevolve.prompt.templates import Templates
-from openevolve.critic.llm_critic import LLMCritic
-from openevolve.critic.exe_critic import PythonExecutionCritic
-from openevolve.llm.llm_ensemble import EnsembleLLM
-from openevolve.llm.llm_openai import OpenAILLM
+from opencontext.actor.evolution_actor import EvolutionActor
+from opencontext.database.database import ProgramDatabase, Program
+from opencontext.prompt.sampler import PromptSampler
+from opencontext.prompt.templates import Templates
+from opencontext.critic.llm_critic import LLMCritic
+from opencontext.critic.exe_critic import PythonExecutionCritic
+from opencontext.llm.llm_ensemble import EnsembleLLM
+from opencontext.llm.llm_openai import OpenAILLM
 
 
 # Initialize the execution critic
-critic_file_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+critic_file_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"
 
 evovle_program_path = (
-    "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"
+    "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/circle_packing.py"
 )
 
 

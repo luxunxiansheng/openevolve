@@ -4,10 +4,10 @@
 import sys
 import os
 
-sys.path.insert(0, "/workspaces/openevolve")
+sys.path.insert(0, "/workspaces/opencontext")
 
 from unittest.mock import AsyncMock, MagicMock
-from openevolve.environment.program_evolution_env import ProgramEvolutionEnv, EvolutionAction
+from opencontext.environment.program_evolution_env import ProgramEvolutionEnv, EvolutionAction
 
 
 def test_enhanced_env():

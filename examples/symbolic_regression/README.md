@@ -1,4 +1,4 @@
-# Evolving Symbolic Regression with OpenEvolve on LLM-SRBench 🧬🔍
+# Evolving Symbolic Regression with OpenContext on LLM-SRBench 🧬🔍
 
 This example demonstrates how **OpenEvolve** can be utilized to perform **symbolic regression** tasks using the **[LLM-SRBench benchmark](https://arxiv.org/pdf/2504.10415)**. It showcases OpenEvolve's capability to evolve Python code, transforming simple mathematical expressions into more complex and accurate models that fit given datasets.
 
@@ -8,7 +8,7 @@ This example demonstrates how **OpenEvolve** can be utilized to perform **symbol
 
 **Symbolic Regression** is the task of discovering a mathematical expression that best fits a given dataset. Unlike traditional regression techniques that optimize parameters for a predefined model structure, symbolic regression aims to find both the **structure of the model** and its **parameters**.
 
-This example leverages **LLM-SRBench**, a benchmark specifically designed for Large Language Model-based Symbolic Regression. The core objective is to use OpenEvolve to evolve an initial, often simple, model (e.g., a linear model) into a more sophisticated symbolic expression. This evolved expression should accurately capture the underlying relationships within various scientific datasets provided by the benchmark.
+This example leverages **LLM-SRBench**, a benchmark specifically designed for Large Language Model-based Symbolic Regression. The core objective is to use OpenContext to evolve an initial, often simple, model (e.g., a linear model) into a more sophisticated symbolic expression. This evolved expression should accurately capture the underlying relationships within various scientific datasets provided by the benchmark.
 
 ------
 
@@ -231,7 +231,7 @@ For benchmark-wide comparisons and results from other methods, please refer to t
 
 **Median NMSE (Test Set)**
 
-| **Domain**       | **Direct**  | **LLMSR**       | **LaSR**    | **SGA**     | **OpenEvolve** |
+| **Domain**       | **Direct**  | **LLMSR**       | **LaSR**    | **SGA**     | **OpenContext** |
 | ---------------- | ----------- | --------------- | ----------- | ----------- | -------------- |
 | Chemistry        | ~6.0 × 10⁻¹ | **~1.5 × 10⁻⁶** | ~1.0 × 10⁻⁴ | ~1.0 × 10⁻² | 2.34 × 10⁻⁶    |
 | Biology          | ~2.0 × 10⁻² | ~1.0 × 10⁻⁵     | ~1.0 × 10⁻⁴ | ~2.0 × 10⁻⁴ | –              |

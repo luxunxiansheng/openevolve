@@ -11,7 +11,7 @@ $ python3 examples/lm_eval/lm-eval.py -h
 usage: lm-eval.py [-h] [--config CONFIG] [--init_file INIT_FILE] [--evaluator_file EVALUATOR_FILE] [--iterations ITERATIONS] [--limit LIMIT] [--tasks TASKS]
                   [--output_path OUTPUT_PATH]
 
-OpenEvolve <-> lm-evaluation-harness adapter.
+OpenContext <-> lm-evaluation-harness adapter.
 
 options:
   -h, --help            show this help message and exit

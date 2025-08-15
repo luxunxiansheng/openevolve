@@ -2,13 +2,13 @@ import unittest
 import asyncio
 import logging
 
-from openevolve.orchestration.orchestrator import Orchestrator
+from opencontext.orchestration.orchestrator import Orchestrator
 
 # Import the Orchestrator and its config
 
-python_critic_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
-evoved_program_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"  # Replace with an actual script path
-output_path = "/workspaces/openevolve/tests/outputs"
+python_critic_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"  # Replace with an actual script path
+evoved_program_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/circle_packing.py"  # Replace with an actual script path
+output_path = "/workspaces/opencontext/tests/outputs"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

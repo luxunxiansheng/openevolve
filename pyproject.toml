@@ -3,9 +3,9 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openevolve"
+name = "opencontext"
 dynamic = ["version"]
-description = "Open-source implementation of AlphaEvolve"
+description = "RL based meta-prompt engine"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Apache-2.0"}
@@ -48,13 +48,13 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [project.scripts]
-openevolve-run = "openevolve.cli:main"
+opencontext-run = "opencontext.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["openevolve*"]
+include = ["opencontext*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "openevolve._version.__version__"}
+version = {attr = "opencontext._version.__version__"}
 
 # Configure a PyPI mirror
 [[tool.uv.index]]

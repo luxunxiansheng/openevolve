@@ -1,8 +1,8 @@
 # Circle Packing Example with Artifacts
 
-This example demonstrates how OpenEvolve can be used to tackle the challenging mathematical problem of circle packing, a classic problem in computational geometry. Specifically, we focus on packing 26 circles of varying sizes into a unit square to maximize the sum of their radii, replicating one of the tasks from the AlphaEvolve paper.
+This example demonstrates how OpenContext can be used to tackle the challenging mathematical problem of circle packing, a classic problem in computational geometry. Specifically, we focus on packing 26 circles of varying sizes into a unit square to maximize the sum of their radii, replicating one of the tasks from the AlphaEvolve paper.
 
-**Enhanced with Artifacts**: This version showcases OpenEvolve's artifacts feature, which provides detailed execution feedback to help the LLM understand what went wrong and how to fix it.
+**Enhanced with Artifacts**: This version showcases OpenContext's artifacts feature, which provides detailed execution feedback to help the LLM understand what went wrong and how to fix it.
 
 ## Artifacts Enhancement
 
@@ -115,14 +115,11 @@ This leads to faster convergence because the LLM gets specific, actionable feedb
 ### Backward Compatibility
 
 The artifacts enhancement is fully backward compatible:
-- **Existing evaluators** continue to work unchanged 
-- **Enhanced evaluators** return `EvaluationResult` with both metrics and artifacts
-- **Disable artifacts** by setting `export ENABLE_ARTIFACTS=false` if needed
 
 To run with artifacts disabled:
 ```bash
 export ENABLE_ARTIFACTS=false
-python openevolve-run.py examples/circle_packing_with_artifacts/initial_program.py \
+python opencontext-run.py examples/circle_packing_with_artifacts/initial_program.py \
   examples/circle_packing_with_artifacts/evaluator.py \
   --config examples/circle_packing_with_artifacts/config_phase_1.yaml
 ```
@@ -160,7 +157,7 @@ exploitation_ratio: 0.7
 
 ### Phase 2: Breaking Through the Plateau
 
-After the initial exploration phase, we observed our solutions plateauing around 2.377. For the second phase, we reconfigured OpenEvolve to encourage more radical innovations:
+After the initial exploration phase, we observed our solutions plateauing around 2.377. For the second phase, we reconfigured OpenContext to encourage more radical innovations:
 
 - Increased the population size to promote diversity
 - Lowered the exploitation ratio to favor exploration
@@ -336,13 +333,13 @@ To reproduce our results:
 
 ```bash
 # Phase 1: Initial exploration
-python openevolve-run.py examples/circle_packing/initial_program.py \
+python opencontext-run.py examples/circle_packing/initial_program.py \
   examples/circle_packing/evaluator.py \
   --config examples/circle_packing/config_phase_1.yaml \
   --iterations 100
 
 # Phase 2: Breaking through the plateau
-python openevolve-run.py examples/circle_packing/openevolve_output/checkpoints/checkpoint_100/best_program.py \
+python opencontext-run.py examples/circle_packing/opencontext_output/checkpoints/checkpoint_100/best_program.py \
   examples/circle_packing/evaluator.py \
   --config examples/circle_packing/config_phase_2.yaml \
   --iterations 100
@@ -351,7 +348,7 @@ python openevolve-run.py examples/circle_packing/openevolve_output/checkpoints/c
 To visualize the best solution:
 
 ```python
-from examples.circle_packing.openevolve_output.best.best_program import run_packing, visualize
+from examples.circle_packing.opencontext_output.best.best_program import run_packing, visualize
 
 centers, radii, sum_radii = run_packing()
 print(f"Sum of radii: {sum_radii}")

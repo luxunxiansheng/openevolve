@@ -1,10 +1,13 @@
-# OpenEvolve Metal Kernel Optimization: Automated Discovery of Custom GPU Kernels for Transformer Attention
+# OpenContext Metal Kernel Optimization: Automated Discovery of Custom GPU Kernels for Transformer Attention
+
+**Evolutionary Optimization of Apple Silicon Metal Kernels for Grouped Query Attention in Qwen3-0.6B**
+# OpenContext Metal Kernel Optimization: Automated Discovery of Custom GPU Kernels for Transformer Attention
 
 **Evolutionary Optimization of Apple Silicon Metal Kernels for Grouped Query Attention in Qwen3-0.6B**
 
 ## Abstract
 
-This work demonstrates the application of evolutionary code optimization to the automatic discovery of custom Metal GPU kernels for transformer attention mechanisms. Using OpenEvolve, we evolved a specialized Metal kernel for Grouped Query Attention (GQA) in Qwen3-0.6B that leverages Apple Silicon's unified memory architecture and vector processing capabilities. Our approach achieved measurable performance improvements over MLX's highly optimized `scaled_dot_product_attention` baseline across diverse inference workloads, with decode speed improvements averaging 12.5% and reaching up to 106% on specific benchmark tasks.
+This work demonstrates the application of evolutionary code optimization to the automatic discovery of custom Metal GPU kernels for transformer attention mechanisms. Using OpenContext, we evolved a specialized Metal kernel for Grouped Query Attention (GQA) in Qwen3-0.6B that leverages Apple Silicon's unified memory architecture and vector processing capabilities. Our approach achieved measurable performance improvements over MLX's highly optimized `scaled_dot_product_attention` baseline across diverse inference workloads, with decode speed improvements averaging 12.5% and reaching up to 106% on specific benchmark tasks.
 
 ## 1. Introduction
 
@@ -14,23 +17,14 @@ Modern transformer models rely heavily on optimized attention kernels for effici
 
 ### 1.2 Target System
 
-- **Model**: Qwen3-0.6B with Grouped Query Attention (40 query heads : 8 key-value heads)
-- **Hardware**: Apple M-series GPUs with unified memory architecture  
-- **Framework**: MLX with custom Metal kernel integration
-- **Baseline**: `mx.fast.scaled_dot_product_attention`
-- **Evolution Target**: Metal shader source code implementing GQA attention computation
 
 ## 2. Methodology
 
 ### 2.1 Evolution Framework
 
-We employ OpenEvolve to automatically optimize the Metal kernel source code responsible for computing attention. The evolutionary process operates on a single code block (EVOLVE-BLOCK) containing approximately 150 lines of Metal C++ shader code while preserving the surrounding MLX integration infrastructure.
+We employ OpenContext to automatically optimize the Metal kernel source code responsible for computing attention. The evolutionary process operates on a single code block (EVOLVE-BLOCK) containing approximately 150 lines of Metal C++ shader code while preserving the surrounding MLX integration infrastructure.
 
 **Evolution Configuration**:
-- **Population Size**: 25 programs
-- **Generations**: 25 iterations  
-- **Models**: Gemini 2.5 Flash (60%) + Gemini 2.5 Pro (40%)
-- **Selection**: Multi-objective optimization balancing performance and correctness
 
 ### 2.2 Evaluation Methodology
 
@@ -50,16 +44,8 @@ Each evolved kernel undergoes comprehensive evaluation:
 ### 2.3 Optimization Constraints
 
 **Preserved Elements**:
-- Kernel function signature and I/O specifications
-- Thread grid mapping and bounds checking
-- Overall algorithm correctness (attention semantics)
-- MLX integration interface
 
 **Optimizable Elements**:
-- Memory access patterns and vectorization
-- Computation order and algorithmic efficiency
-- Apple Silicon specific optimizations
-- GQA-specific computation strategies
 
 ## 3. Technical Contributions
 
@@ -119,10 +105,6 @@ const uint kv_head_idx = head_idx / HEADS_PER_KV;  // Direct 5:1 mapping
 ### 3.2 Apple Silicon Specialization
 
 The evolved kernel exploits specific Apple Silicon features:
-- **Unified Memory**: Optimized bandwidth utilization patterns
-- **SIMD Width**: 8-element vectors matching GPU vector units  
-- **Thread Group Size**: 32-thread groups optimal for Apple GPUs
-- **Register Allocation**: Balanced computation vs. memory bandwidth
 
 ## 4. Experimental Results
 
@@ -131,10 +113,6 @@ The evolved kernel exploits specific Apple Silicon features:
 We evaluated the evolved kernel against MLX baseline across 20 comprehensive benchmark scenarios representing real-world inference patterns.
 
 **Aggregate Performance Improvements**:
-- **Decode Speed**: +12.5% average improvement (σ = 38.3%)
-- **Prefill Speed**: +14.4% average improvement (σ = 17.6%)  
-- **Total Throughput**: +10.4% average improvement (σ = 30.7%)
-- **Memory Usage**: +0.99% average reduction (σ = 1.7%)
 
 ### 4.2 Benchmark Category Analysis
 
@@ -149,20 +127,12 @@ We evaluated the evolved kernel against MLX baseline across 20 comprehensive ben
 ### 4.3 Statistical Analysis
 
 **Distribution of Improvements**:
-- **Significant Gains** (>25%): 7/20 benchmarks
-- **Moderate Gains** (5-25%): 3/20 benchmarks  
-- **Neutral** (±5%): 4/20 benchmarks
-- **Regressions** (<-5%): 6/20 benchmarks
 
 **Peak Performance**: Repetitive pattern generation achieved 106% decode speed improvement, demonstrating the kernel's effectiveness for certain workload characteristics.
 
 ### 4.4 Correctness Validation
 
 All evolved kernels maintained numerical correctness:
-- **Accuracy**: 100% correctness score across all test cases
-- **Numerical Stability**: No NaN/Inf values detected
-- **Statistical Validation**: Output distributions within expected ranges
-- **Functional Equivalence**: Attention semantics preserved
 
 ## 5. Discussion
 
@@ -171,14 +141,8 @@ All evolved kernels maintained numerical correctness:
 The evolved kernel shows workload-dependent performance characteristics:
 
 **Strengths**:
-- **Sustained Generation**: +46.6% improvement on dialogue tasks
-- **Long Sequences**: +73.9% improvement on extreme-length generation
-- **Memory Efficiency**: Consistent memory usage reduction
 
 **Limitations**:  
-- **Short Sequences**: Limited improvement due to setup overhead
-- **Code Generation**: -16.5% regression suggesting suboptimal patterns for this workload
-- **Variance**: High performance variance across different sequence patterns
 
 ### 5.2 Technical Insights
 
@@ -200,9 +164,6 @@ The evolved kernel shows workload-dependent performance characteristics:
 
 This work extends prior research in automated kernel optimization:
 
-- **AlphaTensor** [Fawzi et al., 2022]: Matrix multiplication algorithm discovery
-- **TensorIR** [Feng et al., 2023]: Tensor compiler optimization  
-- **Ansor** [Zheng et al., 2020]: Automated tensor program optimization
 
 Our approach differs by applying evolutionary optimization directly to GPU shader source code rather than higher-level tensor algebra, enabling discovery of hardware-specific optimizations that would be difficult to express in tensor IRs.
 
@@ -210,16 +171,9 @@ Our approach differs by applying evolutionary optimization directly to GPU shade
 
 ### 7.1 Current Limitations
 
-- **Workload Specificity**: Performance improvements are highly dependent on sequence patterns
-- **Model Scope**: Results specific to Qwen3-0.6B's 40:8 GQA configuration
-- **Hardware Scope**: Optimizations specific to Apple Silicon architecture
 
 ### 7.2 Future Directions
 
-- **Multi-Architecture**: Extend to CUDA, ROCm, and other GPU architectures
-- **Model Generalization**: Apply to different attention patterns and model sizes  
-- **Algorithmic Expansion**: Explore evolution of other transformer components
-- **Cross-Compilation**: Develop architecture-agnostic optimization strategies
 
 ## 8. Conclusion
 

@@ -1,6 +1,6 @@
 # R Robust Regression Evolution
 
-This example demonstrates how to use OpenEvolve with the R programming language. The example focuses on evolving robust regression algorithms that can handle outliers in data, showcasing OpenEvolve's ability to work with statistical computing languages beyond Python.
+This example demonstrates how to use OpenContext with the R programming language. The example focuses on evolving robust regression algorithms that can handle outliers in data, showcasing OpenContext's ability to work with statistical computing languages beyond Python.
 
 ## Files
 
@@ -29,7 +29,7 @@ Run the evolution process:
 
 ```bash
 cd examples/r_robust_regression
-python ../../openevolve-run.py initial_program.r evaluator.py --config config.yaml --iterations 100
+python ../../opencontext-run.py initial_program.r evaluator.py --config config.yaml --iterations 100
 ```
 
 This example shows how OpenEvolve can evolve algorithms in R by starting with a basic least squares implementation and improving it to handle outliers through various robust regression techniques.

@@ -38,7 +38,7 @@ ENV/
 
 # Output files
 examples/*/output/
-openevolve_output*/
+opencontext_output*/
 *.log
 
 # Test cache

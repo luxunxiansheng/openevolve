@@ -1,5 +1,5 @@
 """
-OpenEvolve <-> lm-evaluation-harness adapter
+OpenContext <-> lm-evaluation-harness adapter
 
 Implements generation only, no loglikelihood. Tasks such as GSM8K / BoolQ / MMLU-Math /
 AQUA-RAT and most code suites should work fine because they grade on the generated
@@ -21,11 +21,11 @@ from datetime import datetime
 # cd to the parent parent directory of this file
 os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-PIPELINE_CMD = ["python3", "openevolve-run.py"]
+PIPELINE_CMD = ["python3", "opencontext-run.py"]
 
 
-@register_model("openevolve")
-class OpenEvolve(LM):
+@register_model("opencontext")
+class OpenContextLM(LM):
     def __init__(
         self,
         init_file: str = "initial_content_stub.txt",
@@ -45,8 +45,11 @@ class OpenEvolve(LM):
         # folder must match prompt:template_dir in config.yml!
         self.prompt_path = "examples/lm_eval/prompts/system_message.txt"
         self.evaluator_prompt_path = "examples/lm_eval/prompts/evaluator_system_message.txt"
-        self.best_path = "examples/lm_eval/openevolve_output/best/best_program.txt"
-        self.base_system_message = "You are an expert task solver, with a lot of commonsense, math, language and coding knowledge.\n\nConsider this task:\n```{prompt}´´´"
+        self.best_path = "examples/lm_eval/opencontext_output/best/best_program.txt"
+        self.base_system_message = (
+            "You are an expert task solver, with a lot of commonsense, math, language and coding knowledge.\n\n"
+            "Consider this task:\n{prompt}"
+        )
 
     def generate(self, prompts: List[str], max_gen_toks: int = None, stop=None, **kwargs):
         outs = []
@@ -161,7 +164,7 @@ if __name__ == "__main__":
     p.add_argument("--output_path", default="results", help="output path for results")
     args = p.parse_args()
 
-    lm_obj = OpenEvolve(
+    lm_obj = OpenContextLM(
         init_file=args.init_file,
         evaluator_file=args.evaluator_file,
         iterations=args.iterations,

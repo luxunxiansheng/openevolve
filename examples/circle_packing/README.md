@@ -1,15 +1,11 @@
 # Circle Packing Example
 
-This example demonstrates how OpenEvolve can be used to tackle the challenging mathematical problem of circle packing, a classic problem in computational geometry. Specifically, we focus on packing 26 circles of varying sizes into a unit square to maximize the sum of their radii, replicating one of the tasks from the AlphaEvolve paper.
+This example demonstrates how OpenContext can be used to tackle the challenging mathematical problem of circle packing, a classic problem in computational geometry. Specifically, we focus on packing 26 circles of varying sizes into a unit square to maximize the sum of their radii, replicating one of the tasks from the AlphaEvolve paper.
 
 ## Problem Overview
 
 The circle packing problem involves placing n non-overlapping circles inside a container (in this case, a unit square) to optimize a specific metric. For this example:
 
-- We pack exactly 26 circles
-- Each circle must lie entirely within the unit square
-- No circles may overlap
-- We aim to maximize the sum of all circle radii
 
 According to the AlphaEvolve paper, a solution with a sum of radii of approximately 2.635 is achievable for n=26. Our goal was to match or exceed this result.
 
@@ -21,9 +17,6 @@ We structured our evolution in two phases, each with a different configuration t
 
 In the first phase, we focused on exploring different fundamental approaches to the packing problem:
 
-- Used a constructor-based approach that places circles in strategic positions
-- Explored various geometric patterns (concentric rings, grid-based arrangements, etc.)
-- Developed simple optimization routines to maximize circle sizes without overlaps
 
 Configuration highlights:
 ```yaml
@@ -35,12 +28,8 @@ exploitation_ratio: 0.7
 
 ### Phase 2: Breaking Through the Plateau
 
-After the initial exploration phase, we observed our solutions plateauing around 2.377. For the second phase, we reconfigured OpenEvolve to encourage more radical innovations:
+After the initial exploration phase, we observed our solutions plateauing around 2.377. For the second phase, we reconfigured OpenContext to encourage more radical innovations:
 
-- Increased the population size to promote diversity
-- Lowered the exploitation ratio to favor exploration
-- Updated the system prompt to suggest different optimization techniques
-- Allowed for longer and more complex code solutions
 
 Configuration highlights:
 ```yaml
@@ -80,7 +69,7 @@ This approach yielded a sum of radii of approximately 0.959.
 
 ### Generation 10 Breakthrough
 
-By generation 10, OpenEvolve had already discovered a more sophisticated approach:
+By generation 10, OpenContext had already discovered a more sophisticated approach:
 
 ```python
 # Generation 10
@@ -104,9 +93,6 @@ for i in range(6):
 ```
 
 The key innovations at this stage included:
-- A carefully tuned hexagonal arrangement for the first ring
-- Strategic placement of corner circles
-- An additional optimization step to maximize each circle's radius
 
 This approach achieved a sum of radii of approximately 1.795.
 
@@ -114,7 +100,7 @@ This approach achieved a sum of radii of approximately 1.795.
 
 ### Generation 100: Grid-Based Approach
 
-By generation 100, OpenEvolve had pivoted to a grid-based approach with variable sized circles:
+By generation 100, OpenContext had pivoted to a grid-based approach with variable sized circles:
 
 ```python
 # Generation 100
@@ -132,9 +118,6 @@ centers[6] = [0.266, 0.333]
 ```
 
 Key innovations:
-- Grid-like pattern with staggered rows
-- Variable circle sizes based on position (larger in the center)
-- More aggressive optimization routine with 50 iterations
 
 This approach achieved a sum of radii of approximately 2.201.
 
@@ -142,7 +125,7 @@ This approach achieved a sum of radii of approximately 2.201.
 
 ### Final Solution: Mathematical Optimization
 
-The breakthrough came when OpenEvolve discovered the power of mathematical optimization techniques. The final solution uses:
+The breakthrough came when OpenContext discovered the power of mathematical optimization techniques. The final solution uses:
 
 ```python
 # Final solution with scipy.optimize
@@ -173,10 +156,6 @@ def construct_packing():
 ```
 
 The key innovation in the final solution:
-- Using `scipy.optimize.minimize` with SLSQP method to find the optimal configuration
-- Formulating circle packing as a constrained optimization problem
-- Representing both circle positions and radii as optimization variables
-- Carefully crafted constraints to enforce non-overlap and boundary conditions
 
 This approach achieved a sum of radii of 2.634, matching the AlphaEvolve paper's result of 2.635 to within 0.04%!
 
@@ -191,13 +170,13 @@ Sum of radii: 2.634292402141039
 Target ratio: 0.9997314619131079 (99.97% of AlphaEvolve's result)
 ```
 
-This demonstrates that OpenEvolve can successfully reproduce the results from the AlphaEvolve paper on this mathematical optimization problem.
+This demonstrates that OpenContext can successfully reproduce the results from the AlphaEvolve paper on this mathematical optimization problem.
 
 ## Key Observations
 
 The evolution process demonstrated several interesting patterns:
 
-1. **Algorithm Transition**: OpenEvolve discovered increasingly sophisticated algorithms, from basic geometric constructions to advanced mathematical optimization techniques.
+1. **Algorithm Transition**: OpenContext discovered increasingly sophisticated algorithms, from basic geometric constructions to advanced mathematical optimization techniques.
 
 2. **Exploration-Exploitation Balance**: The two-phase approach was crucial - initial exploration of different patterns followed by exploitation and refinement of the most promising approaches.
 
@@ -211,13 +190,13 @@ To reproduce our results:
 
 ```bash
 # Phase 1: Initial exploration
-python openevolve-run.py examples/circle_packing/initial_program.py \
+python opencontext-run.py examples/circle_packing/initial_program.py \
   examples/circle_packing/evaluator.py \
   --config examples/circle_packing/config_phase_1.yaml \
   --iterations 100
 
 # Phase 2: Breaking through the plateau
-python openevolve-run.py examples/circle_packing/openevolve_output/checkpoints/checkpoint_100/best_program.py \
+python opencontext-run.py examples/circle_packing/opencontext_output/checkpoints/checkpoint_100/best_program.py \
   examples/circle_packing/evaluator.py \
   --config examples/circle_packing/config_phase_2.yaml \
   --iterations 100
@@ -226,7 +205,7 @@ python openevolve-run.py examples/circle_packing/openevolve_output/checkpoints/c
 To visualize the best solution:
 
 ```python
-from examples.circle_packing.openevolve_output.best.best_program import run_packing, visualize
+from examples.circle_packing.opencontext_output.best.best_program import run_packing, visualize
 
 centers, radii, sum_radii = run_packing()
 print(f"Sum of radii: {sum_radii}")
@@ -235,6 +214,6 @@ visualize(centers, radii)
 
 ## Conclusion
 
-This example demonstrates OpenEvolve's ability to discover sophisticated algorithms for mathematical optimization problems. By evolving from simple constructive approaches to advanced numerical optimization techniques, OpenEvolve was able to match the results reported in the AlphaEvolve paper.
+This example demonstrates OpenContext's ability to discover sophisticated algorithms for mathematical optimization problems. By evolving from simple constructive approaches to advanced numerical optimization techniques, OpenContext was able to match the results reported in the AlphaEvolve paper.
 
-The circle packing problem shows how OpenEvolve can discover not just improvements to existing algorithms, but entirely new algorithmic approaches, transitioning from manual geometric construction to principled mathematical optimization.
+The circle packing problem shows how OpenContext can discover not just improvements to existing algorithms, but entirely new algorithmic approaches, transitioning from manual geometric construction to principled mathematical optimization.

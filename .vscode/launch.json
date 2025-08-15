@@ -9,10 +9,10 @@
             "envFile": "${workspaceFolder}/.env"
         },
         {
-            "name": "Debug OpenEvolve Run",
+            "name": "Debug OpenContext Run",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/openevolve-run.py",
+            "program": "${workspaceFolder}/opencontext-run.py",
             "console": "integratedTerminal",
             "args": [
                 "${workspaceFolder}/examples/circle_packing_with_artifacts/initial_program.py",

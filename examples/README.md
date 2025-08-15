@@ -1,10 +1,10 @@
-# OpenEvolve Examples
+# OpenContext Examples
 
-This directory contains a collection of examples demonstrating how to use OpenEvolve for various tasks including optimization, algorithm discovery, and code evolution. Each example showcases different aspects of OpenEvolve's capabilities and provides templates for creating your own evolutionary coding projects.
+This directory contains a collection of examples demonstrating how to use OpenContext for various tasks including optimization, algorithm discovery, and code evolution. Each example showcases different aspects of OpenContext's capabilities and provides templates for creating your own evolutionary coding projects.
 
 ## Quick Start Template
 
-To create your own OpenEvolve example, you need three essential components:
+To create your own OpenContext example, you need three essential components:
 
 ### 1. Initial Program (`initial_program.py`)
 
@@ -14,21 +14,17 @@ Your initial program must contain exactly **one** `EVOLVE-BLOCK`:
 # EVOLVE-BLOCK-START
 def your_function():
     # Your initial implementation here
-    # This is the only section OpenEvolve will modify
+  # This is the only section OpenContext will modify
     pass
 # EVOLVE-BLOCK-END
 
 # Helper functions and other code outside the evolve block
 def helper_function():
-    # This code won't be modified by OpenEvolve
+  # This code won't be modified by OpenContext
     pass
 ```
 
 **Critical Requirements:**
-- ✅ **Exactly one EVOLVE-BLOCK** (not multiple blocks)
-- ✅ Use `# EVOLVE-BLOCK-START` and `# EVOLVE-BLOCK-END` markers
-- ✅ Put only the code you want evolved inside the block
-- ✅ Helper functions and imports go outside the block
 
 ### 2. Evaluator (`evaluator.py`)
 
@@ -60,10 +56,6 @@ def evaluate(program_path: str) -> Dict:
 ```
 
 **Critical Requirements:**
-- ✅ **Return a dictionary**, not `EvaluationResult` object
-- ✅ **Must include `'combined_score'`** - this is the primary metric OpenEvolve uses
-- ✅ Higher `combined_score` values should indicate better programs
-- ✅ Handle exceptions and return `combined_score: 0.0` on failure
 
 ### 3. Configuration (`config.yaml`)
 
@@ -114,10 +106,6 @@ log_level: "INFO"
 ```
 
 **Critical Requirements:**
-- ✅ **`feature_dimensions` must be a list** (e.g., `["score", "complexity"]`), not an integer
-- ✅ Set appropriate timeouts for your use case
-- ✅ Configure LLM settings for your provider
-- ✅ Use meaningful `system_message` to guide evolution
 
 ## Common Configuration Mistakes
 
@@ -137,16 +125,16 @@ log_level: "INFO"
 
 ```bash
 # Basic run
-python openevolve-run.py path/to/initial_program.py path/to/evaluator.py --config path/to/config.yaml --iterations 100
+python opencontext-run.py path/to/initial_program.py path/to/evaluator.py --config path/to/config.yaml --iterations 100
 
 # Resume from checkpoint
-python openevolve-run.py path/to/initial_program.py path/to/evaluator.py \
+python opencontext-run.py path/to/initial_program.py path/to/evaluator.py \
   --config path/to/config.yaml \
   --checkpoint path/to/checkpoint_directory \
   --iterations 50
 
 # View results
-python scripts/visualizer.py --path path/to/openevolve_output/checkpoints/checkpoint_100/
+python scripts/visualizer.py --path path/to/opencontext_output/checkpoints/checkpoint_100/
 ```
 
 ## Advanced Configuration Options
@@ -187,7 +175,7 @@ evaluator:
 **Key Lesson:** Shows automatic discovery of optimization algorithms  
 ```bash
 cd examples/function_minimization
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 #### [Circle Packing](circle_packing/)
@@ -196,7 +184,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config.y
 **Key Lesson:** Demonstrates evolution from geometric heuristics to mathematical optimization  
 ```bash
 cd examples/circle_packing
-python ../../openevolve-run.py initial_program.py evaluator.py --config config_phase_1.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config_phase_1.yaml
 ```
 
 ### 🔧 Algorithm Discovery
@@ -207,7 +195,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config_p
 **Key Lesson:** Shows evolution of domain-specific algorithms  
 ```bash
 cd examples/signal_processing
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 #### [Rust Adaptive Sort](rust_adaptive_sort/)
@@ -216,7 +204,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config.y
 **Key Lesson:** Multi-language support (Rust) and algorithm adaptation  
 ```bash
 cd examples/rust_adaptive_sort
-python ../../openevolve-run.py initial_program.rs evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.rs evaluator.py --config config.yaml
 ```
 
 ### 🚀 Performance Optimization
@@ -227,7 +215,7 @@ python ../../openevolve-run.py initial_program.rs evaluator.py --config config.y
 **Key Lesson:** Hardware-specific optimization and performance tuning  
 ```bash
 cd examples/mlx_metal_kernel_opt
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 ### 🌐 Web and Data Processing
@@ -238,7 +226,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config.y
 **Key Lesson:** Shows integration with LLM proxy systems and test-time compute  
 ```bash
 cd examples/web_scraper_optillm
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 ### 💻 Programming Challenges
@@ -249,7 +237,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config.y
 **Key Lesson:** Integration with external evaluation systems  
 ```bash
 cd examples/online_judge_programming
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 ### 📊 Machine Learning and AI
@@ -260,7 +248,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config.y
 **Key Lesson:** Self-improving AI systems and prompt evolution  
 ```bash
 cd examples/llm_prompt_optimazation
-python ../../openevolve-run.py initial_prompt.txt evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_prompt.txt evaluator.py --config config.yaml
 ```
 
 #### [LM-Eval Integration](lm_eval/)
@@ -281,7 +269,7 @@ python ../../openevolve-run.py initial_prompt.txt evaluator.py --config config.y
 **Key Lesson:** Multi-language support (R) and statistical algorithm evolution  
 ```bash
 cd examples/r_robust_regression
-python ../../openevolve-run.py initial_program.r evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.r evaluator.py --config config.yaml
 ```
 
 ### 🎯 Advanced Features
@@ -289,10 +277,10 @@ python ../../openevolve-run.py initial_program.r evaluator.py --config config.ya
 #### [Circle Packing with Artifacts](circle_packing_with_artifacts/)
 **Task:** Circle packing with detailed execution feedback  
 **Achievement:** Advanced debugging and artifact collection  
-**Key Lesson:** Using OpenEvolve's artifact system for detailed analysis  
+**Key Lesson:** Using OpenContext's artifact system for detailed analysis  
 ```bash
 cd examples/circle_packing_with_artifacts
-python ../../openevolve-run.py initial_program.py evaluator.py --config config_phase_1.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config_phase_1.yaml
 ```
 
 ## Best Practices
@@ -316,7 +304,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config_p
 - Monitor progress and adjust configuration as needed
 
 ### 🐛 Debugging
-- Check logs in `openevolve_output/logs/`
+- Check logs in `opencontext_output/logs/`
 - Examine failed programs in checkpoint directories
 - Use artifacts to understand program behavior
 - Test your evaluator independently before evolution
@@ -324,7 +312,7 @@ python ../../openevolve-run.py initial_program.py evaluator.py --config config_p
 ## Getting Help
 
 - 📖 See individual example READMEs for detailed walkthroughs
-- 🔍 Check the main [OpenEvolve documentation](../README.md)
-- 💬 Open issues on the [GitHub repository](https://github.com/codelion/openevolve)
+- 🔍 Check the main [OpenContext documentation](../README.md)
+- 💬 Open issues on the [GitHub repository](https://github.com/codelion/opencontext)
 
 Each example is self-contained and includes all necessary files to get started. Pick an example similar to your use case and adapt it to your specific problem!

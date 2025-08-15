@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/openevolve
+  url: https://pypi.org/p/opencontext
     permissions:
       id-token: write
     steps:
@@ -87,8 +87,8 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=openevolve-amd64
-          cache-to: type=gha,scope=openevolve-amd64,mode=max
+          cache-from: type=gha,scope=opencontext-amd64
+          cache-to: type=gha,scope=opencontext-amd64,mode=max
           outputs: type=registry,compression=zstd,compression-level=5
 
       # Cleanup after AMD64 build
@@ -108,8 +108,8 @@ jobs:
           platforms: linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=openevolve-arm64
-          cache-to: type=gha,scope=openevolve-arm64,mode=max
+          cache-from: type=gha,scope=opencontext-arm64
+          cache-to: type=gha,scope=opencontext-arm64,mode=max
           outputs: type=registry,compression=zstd,compression-level=5
 
       # Final cleanup

@@ -80,7 +80,7 @@ signal_processing/
 ## How to Run
 
 ### Prerequisites
-1. Install OpenEvolve and its dependencies
+1. Install OpenContext and its dependencies
 2. Install example-specific requirements:
    ```bash
    pip install -r requirements.txt
@@ -97,18 +97,18 @@ python test_setup.py
 This will test the initial implementation and evaluator to ensure everything is ready for evolution.
 
 ### Running the Evolution
-From the OpenEvolve root directory:
+From the OpenContext root directory:
 ```bash
-python openevolve-run.py examples/signal_processing/config.yaml
+python opencontext-run.py examples/signal_processing/config.yaml
 ```
 
 Or from the signal_processing directory:
 ```bash
-python ../../openevolve-run.py config.yaml
+python ../../opencontext-run.py config.yaml
 ```
 
 ### Monitoring Progress
-The evolution will create an `openevolve_output` directory containing:
+The evolution will create an `opencontext_output` directory containing:
 - **Checkpoints**: Saved population states at regular intervals
 - **Logs**: Detailed evolution progress and metrics
 - **Best Programs**: Top-performing algorithm implementations

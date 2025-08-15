@@ -1354,7 +1354,7 @@ class BulletproofMetalEvaluator:
 
 
 def evaluate(program_text: str) -> Dict[str, Any]:
-    """🛡️ BULLETPROOF evaluation function called by OpenEvolve"""
+    """🛡️ BULLETPROOF evaluation function called by OpenContext"""
     evaluator = BulletproofMetalEvaluator()
     return evaluator.evaluate(program_text)
 

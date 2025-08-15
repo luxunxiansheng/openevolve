@@ -1,6 +1,6 @@
 # Function Minimization Example
 
-This example demonstrates how OpenEvolve can discover sophisticated optimization algorithms starting from a simple implementation.
+This example demonstrates how OpenContext can discover sophisticated optimization algorithms starting from a simple implementation.
 
 ## Problem Description
 
@@ -18,7 +18,7 @@ To run this example:
 
 ```bash
 cd examples/function_minimization
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 ## Algorithm Evolution
@@ -59,7 +59,7 @@ def search_algorithm(iterations=1000, bounds=(-5, 5)):
 
 ### Evolved Algorithm (Simulated Annealing)
 
-After running OpenEvolve, it discovered a simulated annealing algorithm with a completely different approach:
+After running OpenContext, it discovered a simulated annealing algorithm with a completely different approach:
 
 ```python
 def search_algorithm(bounds=(-5, 5), iterations=2000, initial_temperature=100, cooling_rate=0.97, step_size_factor=0.2, step_size_increase_threshold=20):
@@ -135,7 +135,7 @@ def search_algorithm(bounds=(-5, 5), iterations=2000, initial_temperature=100, c
 
 ## Key Improvements
 
-Through evolutionary iterations, OpenEvolve discovered several key algorithmic concepts:
+Through evolutionary iterations, OpenContext discovered several key algorithmic concepts:
 
 1. **Exploration via Temperature**: Simulated annealing uses a `temperature` parameter to allow uphill moves early in the search, helping escape local minima that would trap simpler methods.
     ```python
@@ -186,7 +186,7 @@ The simulated annealing algorithm:
 
 ## How It Works
 
-This example demonstrates key features of OpenEvolve:
+This example demonstrates key features of OpenContext:
 
 - **Code Evolution**: Only the code inside the evolve blocks is modified
 - **Complete Algorithm Redesign**: The system transformed a random search into a completely different algorithm

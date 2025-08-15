@@ -1,6 +1,6 @@
-# Evolving Better Prompts with OpenEvolve 🧠✨
+# Evolving Better Prompts with OpenContext 🧠✨
 
-This example shows how to use **OpenEvolve** to automatically optimize prompts for **Large Language Models (LLMs)**. Whether you're working on classification, summarization, generation, or code tasks, OpenEvolve helps you find high-performing prompts using **evolutionary search**. For this example we'll use syntihetic data for sentiment analysis task, but you can adapt it to your own datasets and tasks.
+This example shows how to use **OpenContext** to automatically optimize prompts for **Large Language Models (LLMs)**. Whether you're working on classification, summarization, generation, or code tasks, OpenContext helps you find high-performing prompts using **evolutionary search**. For this example we'll use syntihetic data for sentiment analysis task, but you can adapt it to your own datasets and tasks.
 
 ---
 
@@ -8,13 +8,13 @@ This example shows how to use **OpenEvolve** to automatically optimize prompts f
 
 Prompt engineering is key to getting reliable outputs from LLMs—but finding the right prompt manually can be slow and inconsistent.
 
-OpenEvolve automates this by:
+OpenContext automates this by:
 
 * Generating and evolving prompt variations
 * Testing them against your task and metrics
 * Selecting the best prompts through generations
 
-You start with a simple prompt and let OpenEvolve evolve it into something smarter and more effective.
+You start with a simple prompt and let OpenContext evolve it into something smarter and more effective.
 
 ---
 
@@ -50,7 +50,7 @@ MAX_RETRIES = 3  # Number of retries for LLM calls
 
 ```
 
-### 3. Run OpenEvolve
+### 3. Run OpenContext
 
 ```bash
 sh run.sh
@@ -92,7 +92,7 @@ Your task prompt using {input_text} as a placeholder.
 # EVOLVE-BLOCK-END
 ```
 
-This is the part OpenEvolve will improve over time.
+This is the part OpenContext will improve over time.
 Good to add the name of your task in 'initial_prompt.txt' header to help the model understand the context.
 
 ---
@@ -121,7 +121,7 @@ evaluator:
 
 ## 📈 Example Output
 
-OpenEvolve evolves prompts like this:
+OpenContext evolves prompts like this:
 
 **Initial Prompt:**
 
@@ -161,7 +161,7 @@ Score:
 
 ## 🔍 Where to Use This
 
-OpenEvolve could be addapted on many tasks:
+OpenContext could be adapted on many tasks:
 
 * **Text Classification**: Spam detection, intent recognition
 * **Content Generation**: Social media posts, product descriptions

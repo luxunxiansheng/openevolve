@@ -1,8 +1,7 @@
-// main.js for OpenEvolve Evolution Visualizer
+// main.js for OpenContext Evolution Visualizer
 
-import { sidebarSticky, showSidebarContent } from './sidebar.js';
-import { updateListSidebarLayout, renderNodeList } from './list.js';
-import { renderGraph, g, getNodeRadius, animateGraphNodeAttributes } from './graph.js';
+import { animateGraphNodeAttributes, renderGraph } from './graph.js';
+import { renderNodeList, updateListSidebarLayout } from './list.js';
 
 export let allNodeData = [];
 let metricMinMax = {};
@@ -261,4 +260,5 @@ export function setSelectedProgramId(id) {
     selectedProgramId = id;
 }
 
-export { archiveProgramIds, lastDataStr, selectedProgramId, formatMetrics, renderMetricBar, getHighlightNodes, getSelectedMetric, metricMinMax };
+export { archiveProgramIds, formatMetrics, getHighlightNodes, getSelectedMetric, lastDataStr, metricMinMax, renderMetricBar, selectedProgramId };
+

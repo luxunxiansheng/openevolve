@@ -27,7 +27,7 @@ def run_compare_benchmarks(args):
     Uses the full benchmark suite for thorough analysis.
     """
     print(f"\n🔬 Running Comparison Benchmark Mode")
-    print(f"📊 Comparing Standard vs OpenEvolve Discovered Optimization")
+    print(f"📊 Comparing Standard vs OpenContext Discovered Optimization")
     print(f"🎯 Model: {args.model}")
     print(f"📁 Output directory: {args.output_dir}")
     print("=" * 80)
@@ -56,9 +56,9 @@ def run_compare_benchmarks(args):
         print("\n✅ Standard benchmark complete!")
         print(f"📊 Standard results: {len(standard_results['results'])} benchmarks completed")
 
-        # Apply optimized attention hook and run benchmark
-        print("\n🚀 Phase 2: Running OpenEvolve Discovered Optimization...")
-        print("💡 Applying custom Metal kernel optimized GQA attention")
+    # Apply optimized attention hook and run benchmark
+    print("\n🚀 Phase 2: Running OpenContext Discovered Optimization...")
+    print("💡 Applying custom Metal kernel optimized GQA attention")
 
         # Import and apply the optimized attention
         optimized_results = run_optimized_benchmark(args, original_dir)
@@ -105,12 +105,12 @@ def run_optimized_benchmark(args, original_dir):
     """
     try:
         # Import the optimized attention implementation
-        # First, try the OpenEvolve output directory (most likely location)
+        # First, try the OpenContext output directory (most likely location)
         best_program_path = os.path.join(
-            original_dir, "openevolve_output", "best", "best_program.py"
+            original_dir, "opencontext_output", "best", "best_program.py"
         )
 
-        # Fallback to root directory if not found in openevolve_output
+    # Fallback to root directory if not found in opencontext_output
         if not os.path.exists(best_program_path):
             best_program_path = os.path.join(original_dir, "best_program.py")
 
@@ -118,11 +118,11 @@ def run_optimized_benchmark(args, original_dir):
             print(f"❌ Error: Optimized program not found")
             print("Searched in the following locations:")
             print(
-                f"  1. {os.path.join(original_dir, 'openevolve_output', 'best', 'best_program.py')}"
+                f"  1. {os.path.join(original_dir, 'opencontext_output', 'best', 'best_program.py')}"
             )
             print(f"  2. {os.path.join(original_dir, 'best_program.py')}")
-            print("Please ensure OpenEvolve has generated an optimized solution")
-            print("Expected path: ./openevolve_output/best/best_program.py")
+            print("Please ensure OpenContext has generated an optimized solution")
+            print("Expected path: ./opencontext_output/best/best_program.py")
             return None
 
         print(f"📁 Loading optimized program from: {best_program_path}")
@@ -358,14 +358,14 @@ def save_comparison_results(comparison_results, output_dir):
     timestamp = comparison_results["timestamp"]
 
     # Save detailed JSON results
-    comparison_file = f"openevolve_comparison_results_{timestamp}.json"
+    comparison_file = f"opencontext_comparison_results_{timestamp}.json"
     with open(comparison_file, "w") as f:
         json.dump(comparison_results, f, indent=2)
 
     # Save CSV summary for easy analysis
     import csv
 
-    csv_file = f"openevolve_comparison_summary_{timestamp}.csv"
+    csv_file = f"opencontext_comparison_summary_{timestamp}.csv"
 
     with open(csv_file, "w", newline="") as f:
         writer = csv.writer(f)
@@ -440,7 +440,7 @@ def print_comparison_summary(comparison_results):
         return
 
     print(f"\n{'='*100}")
-    print(f"{'🚀 OPENEVOLVE CUSTOM METAL KERNEL OPTIMIZATION RESULTS':^100}")
+    print(f"{'🚀 OPENCONTEXT CUSTOM METAL KERNEL OPTIMIZATION RESULTS':^100}")
     print(f"{'='*100}")
 
     summary = comparison_results["summary"]
@@ -533,7 +533,7 @@ def print_comparison_summary(comparison_results):
     print(f"  📊 Success Rate: {success_rate:.1f}%")
 
     if summary["avg_decode_improvement_pct"] > 15:
-        print(f"  🎉 EXCELLENT: OpenEvolve discovered a significant optimization!")
+        print(f"  🎉 EXCELLENT: OpenContext discovered a significant optimization!")
         print(
             f"  💡 {summary['avg_decode_improvement_pct']:.1f}% average improvement is substantial"
         )
@@ -573,7 +573,7 @@ def print_comparison_summary(comparison_results):
 
     print(f"\n{'='*100}")
     print(f"🔬 Comprehensive analysis complete! Results saved to comparison files.")
-    print(f"💡 This represents a genuine Metal kernel discovery by OpenEvolve.")
+    print(f"💡 This represents a genuine Metal kernel discovery by OpenContext.")
     print(f"{'='*100}")
 
 
@@ -604,7 +604,7 @@ def main():
 
     elif args.mode == "compare":
         print("\n🔬 Running Comprehensive Comparison...")
-        print("📊 This will benchmark standard MLX-LM vs OpenEvolve Metal kernel optimization")
+        print("📊 This will benchmark standard MLX-LM vs OpenContext Metal kernel optimization")
         return run_compare_benchmarks(args)
 
     else:  # full
@@ -634,7 +634,7 @@ def main():
 
     if args.mode != "compare":
         print("\n🎯 These results establish the baseline for Metal kernel optimization.")
-        print("🔧 Next step: Run with --mode compare to validate OpenEvolve discoveries!")
+        print("🔧 Next step: Run with --mode compare to validate OpenContext discoveries!")
         print("💡 Example: python run_benchmarks.py --mode compare --output-dir results")
         print("📚 Ensure MLX-LM is installed: pip install mlx-lm")
 

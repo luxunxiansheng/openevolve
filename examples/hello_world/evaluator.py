@@ -1,4 +1,4 @@
-from openevolve.critic.critic import EvaluationResult, Critic
+from opencontext.critic.critic import EvaluationResult, Critic
 
 
 class HelloWorldEvaluator(Critic):

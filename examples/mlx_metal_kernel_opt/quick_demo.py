@@ -25,7 +25,7 @@ def main():
         return
 
     # Check for optimized program
-    locations = ["openevolve_output/best/best_program.py", "best_program.py"]
+    locations = ["opencontext_output/best/best_program.py", "best_program.py"]
     found = any(os.path.exists(loc) for loc in locations)
 
     if not found:

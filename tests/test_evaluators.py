@@ -5,7 +5,7 @@ Test suite for the modular evaluator system
 import asyncio
 import unittest
 
-from openevolve.environment.evaluators import BaseEvaluator, ExecutionEvaluator, LLMEvaluator
+from opencontext.environment.evaluators import BaseEvaluator, ExecutionEvaluator, LLMEvaluator
 
 
 class TestBaseEvaluator(unittest.TestCase):
@@ -22,12 +22,12 @@ class TestExecutionEvaluator(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         # Use the same critic and evolved code paths as test_exe_critic
-        critic_path = "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/critic.py"
+        critic_path = "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/critic.py"
         self.evaluator = ExecutionEvaluator(critic_program_path=critic_path, job_timeout_seconds=10)
 
         # Path to evolved program for testing
         self.evolved_program_path = (
-            "/workspaces/openevolve/examples/circle_packing_with_artifacts_new/circle_packing.py"
+            "/workspaces/opencontext/examples/circle_packing_with_artifacts_new/circle_packing.py"
         )
 
     def test_evaluator_creation(self):
@@ -94,8 +94,8 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         # Simplified setup without PromptSampler
-        from openevolve.llm.llm_openai import OpenAILLM
-        from openevolve.llm.llm_ensemble import EnsembleLLM
+        from opencontext.llm.llm_openai import OpenAILLM
+        from opencontext.llm.llm_ensemble import EnsembleLLM
 
         # Create LLM client
         self.llm_client = EnsembleLLM([OpenAILLM()])
@@ -169,7 +169,7 @@ class TestEvaluatorIntegration(unittest.TestCase):
 
     def test_can_import_all_evaluators(self):
         """Test that all evaluators can be imported successfully"""
-        from openevolve.environment.evaluators import (
+        from opencontext.environment.evaluators import (
             BaseEvaluator,
             ExecutionEvaluator,
             LLMEvaluator,

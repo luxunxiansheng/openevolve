@@ -10,7 +10,7 @@ Usage:
     python test_optimized_attention.py [path_to_best_program.py]
 
     If no path is provided, it will use the default best_program.py from
-    openevolve_output/best/
+    opencontext_output/best/
 """
 
 import os
@@ -27,7 +27,7 @@ def find_best_program() -> Optional[str]:
     """Find the best_program.py file in the expected location"""
     # Default location
     default_path = os.path.join(
-        os.path.dirname(__file__), "openevolve_output", "best", "best_program.py"
+    os.path.dirname(__file__), "opencontext_output", "best", "best_program.py"
     )
 
     if os.path.exists(default_path):
@@ -36,7 +36,7 @@ def find_best_program() -> Optional[str]:
     # Alternative locations to check
     alternatives = [
         "best_program.py",
-        "openevolve_output/best/best_program.py",
+    "opencontext_output/best/best_program.py",
         "../best_program.py",
     ]
 
@@ -459,7 +459,7 @@ def main():
         print("   Please provide the path to the optimized program:")
         print("   python test_optimized_attention.py path/to/best_program.py")
         print("\n   Or make sure you have run AlphaEvolve and have results in:")
-        print("   openevolve_output/best/best_program.py")
+    print("   opencontext_output/best/best_program.py")
         sys.exit(1)
 
     print("🚀 MLX Optimized Attention Tester")

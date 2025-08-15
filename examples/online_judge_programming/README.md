@@ -1,6 +1,6 @@
 # Online Judge Programming Example
 
-This example demonstrates how OpenEvolve can solve programming problems and pass all test cases on [Kattis online judge](https://open.kattis.com/) starting from scratch.
+This example demonstrates how OpenContext can solve programming problems and pass all test cases on [Kattis online judge](https://open.kattis.com/) starting from scratch.
 
 ## Problem Description
 
@@ -35,7 +35,7 @@ Then, to run this example:
 
 ```bash
 cd examples/online_judge_programming
-python ../../openevolve-run.py initial_program.py evaluator.py --config config.yaml
+python ../../opencontext-run.py initial_program.py evaluator.py --config config.yaml
 ```
 
 ## Algorithm Evolution

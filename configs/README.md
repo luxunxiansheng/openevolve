@@ -1,6 +1,6 @@
-# OpenEvolve Configuration Files
+# OpenContext Configuration Files
 
-This directory contains configuration files for OpenEvolve with examples for different use cases.
+This directory contains configuration files for OpenContext with examples for different use cases.
 
 ## Configuration Files
 
@@ -61,11 +61,11 @@ cp configs/default_config.yaml my_config.yaml
 # Edit my_config.yaml for your specific needs
 ```
 
-Then use with OpenEvolve:
+Then use with OpenContext:
 
 ```python
-from openevolve import OpenEvolve
-evolve = OpenEvolve(
+from opencontext import OpenContext
+evolve = OpenContext(
     initial_program_path="program.py",
     evaluation_file="evaluator.py", 
     config_path="my_config.yaml"

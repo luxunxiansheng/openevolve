@@ -1,4 +1,4 @@
-"""Sentiment analysis prompt example for OpenEvolve"""
+"""Sentiment analysis prompt example for OpenContext"""
 
 # EVOLVE-BLOCK-START
 Please analyze the sentiment of the following sentence and provide a sentiment score:

@@ -6,6 +6,7 @@ import asyncio
 import unittest
 
 from opencontext.environment.evaluators import BaseEvaluator, ExecutionEvaluator, LLMEvaluator
+from opencontext.environment.evaluators.base_evaluator import EvaluationResult
 
 
 class TestBaseEvaluator(unittest.TestCase):
@@ -45,16 +46,22 @@ class TestExecutionEvaluator(unittest.IsolatedAsyncioTestCase):
 
         # Run evaluation like test_exe_critic does
         result = await self.evaluator.evaluate(
-            code=evolved_code, program_id="test_program_execution_evaluator", runtime_env={}
+            code=evolved_code,
+            program_id="test_program_execution_evaluator",
+            runtime_env={"working_dir": "/workspaces/opencontext"},
         )
 
-        # Check that we get a result dictionary
-        self.assertIsInstance(result, dict)
-        print(f"Evaluation result: {result}")
+        # Check that we get an EvaluationResult object
+        self.assertIsInstance(result, EvaluationResult)
+        print(f"Evaluation result: {result.metrics}")
 
         # The result should contain metrics from the critic program
         # Based on circle_packing critic, we expect metrics like 'combined_score'
-        self.assertTrue(len(result) > 0, "Should have some metrics from critic program")
+        self.assertTrue(len(result.metrics) > 0, "Should have some metrics from critic program")
+
+        # Test backward compatibility
+        metrics_dict = result.to_dict()
+        self.assertIsInstance(metrics_dict, dict)
 
     async def test_evaluate_simple_code(self):
         """Test evaluation of simple Python code with circle_packing critic"""
@@ -72,8 +79,8 @@ print(f"Created {len(circles)} circles")
 
         result = await self.evaluator.evaluate(code=simple_code, program_id="test_simple_code")
 
-        self.assertIsInstance(result, dict)
-        print(f"Simple code result: {result}")
+        self.assertIsInstance(result, EvaluationResult)
+        print(f"Simple code result: {result.metrics}")
 
     def test_evaluate_invalid_critic_path(self):
         """Test that invalid critic path raises appropriate error"""
@@ -122,13 +129,13 @@ class TestLLMEvaluator(unittest.IsolatedAsyncioTestCase):
             # Run evaluation with simplified interface
             result = await self.evaluator.evaluate(code=program_code)
 
-            print(f"LLM Evaluation Result: {result}")
+            print(f"LLM Evaluation Result: {result.metrics}")
 
-            # Check that we get a result dictionary with numeric metrics
-            self.assertIsInstance(result, dict)
+            # Check that we get an EvaluationResult object
+            self.assertIsInstance(result, EvaluationResult)
 
-            # All values should be numeric
-            for key, value in result.items():
+            # All metric values should be numeric
+            for key, value in result.metrics.items():
                 self.assertIsInstance(value, (int, float), f"Metric {key} should be numeric")
 
         except Exception as e:
@@ -147,8 +154,8 @@ if __name__ == "__main__":
         try:
             result = await self.evaluator.evaluate(code=simple_code)
 
-            self.assertIsInstance(result, dict)
-            print(f"Simple code LLM result: {result}")
+            self.assertIsInstance(result, EvaluationResult)
+            print(f"Simple code LLM result: {result.metrics}")
 
         except Exception as e:
             self.skipTest(f"LLM API not available or failed: {e}")
@@ -162,6 +169,48 @@ if __name__ == "__main__":
         """Test that empty code raises appropriate error"""
         with self.assertRaises(ValueError):
             await self.evaluator.evaluate(code="")
+
+
+class TestEvaluationResult(unittest.TestCase):
+    """Test the EvaluationResult data class"""
+
+    def test_evaluation_result_creation(self):
+        """Test basic EvaluationResult creation"""
+        metrics = {"score": 0.8, "accuracy": 0.9}
+        artifacts = {"log": "test log", "data": b"binary data"}
+
+        result = EvaluationResult(metrics=metrics, artifacts=artifacts)
+
+        self.assertEqual(result.metrics, metrics)
+        self.assertEqual(result.artifacts, artifacts)
+
+    def test_evaluation_result_from_dict(self):
+        """Test EvaluationResult.from_dict backward compatibility"""
+        metrics = {"score": 0.7}
+        result = EvaluationResult.from_dict(metrics)
+
+        self.assertEqual(result.metrics, metrics)
+        self.assertEqual(result.artifacts, {})
+
+    def test_evaluation_result_to_dict(self):
+        """Test EvaluationResult.to_dict backward compatibility"""
+        metrics = {"score": 0.6}
+        artifacts = {"info": "test"}
+        result = EvaluationResult(metrics=metrics, artifacts=artifacts)
+
+        self.assertEqual(result.to_dict(), metrics)
+
+    def test_evaluation_result_artifact_methods(self):
+        """Test artifact utility methods"""
+        artifacts = {"text": "hello", "binary": b"world", "empty": ""}
+        result = EvaluationResult(metrics={}, artifacts=artifacts)
+
+        self.assertTrue(result.has_artifacts())
+        self.assertEqual(set(result.get_artifact_keys()), {"text", "binary", "empty"})
+        self.assertEqual(result.get_artifact_size("text"), 5)  # "hello" = 5 bytes
+        self.assertEqual(result.get_artifact_size("binary"), 5)  # b"world" = 5 bytes
+        self.assertEqual(result.get_artifact_size("empty"), 0)
+        self.assertEqual(result.get_total_artifact_size(), 10)
 
 
 class TestEvaluatorIntegration(unittest.TestCase):

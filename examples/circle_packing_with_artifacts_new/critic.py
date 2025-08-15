@@ -53,28 +53,47 @@ class CirclePackingCritic(BaseEvaluator):
             # Combined score - higher is better
             combined_score = target_ratio * validity
 
+            bv = validation_details.get("boundary_violations", [])
+            ov = validation_details.get("overlaps", [])
+
+            # Ensure all artifacts are primitive types (str, float, int, bool)
             artifacts = {
-                "packing_summary": f"Sum of radii: {sum_radii:.6f}/{TARGET_VALUE} = {target_ratio:.4f}",
-                "validation_report": f"Valid: {valid}, Violations: {len(validation_details.get('boundary_violations', []))} boundary, {len(validation_details.get('overlaps', []))} overlaps",
+                "sum_radii": float(sum_radii),
+                "target_value": float(TARGET_VALUE),
+                "target_ratio": float(target_ratio),
+                "valid": bool(valid),
+                "boundary_violations_count": int(len(bv)),
+                "overlaps_count": int(len(ov)),
+                # Flatten lists into single strings to keep artifacts flat/primitive-typed
+                "boundary_violations": "; ".join(bv) if bv else "",
+                "overlaps": "; ".join(ov) if ov else "",
+                "min_radius": float(validation_details.get("min_radius", 0.0)),
+                "max_radius": float(validation_details.get("max_radius", 0.0)),
+                "avg_radius": float(validation_details.get("avg_radius", 0.0)),
+                "total_circles": int(validation_details.get("total_circles", 0)),
             }
 
-            # Add sum mismatch warning if present
+            # Add sum mismatch warning if present (as string)
             if sum_mismatch:
-                artifacts["sum_mismatch"] = (
+                artifacts["sum_mismatch"] = str(
                     f"Reported: {reported_sum_radii:.6f}, Calculated: {sum_radii:.6f}"
                 )
 
-            # Add successful packing stats for good solutions
+            # Add successful packing stats for good solutions (as separate flat fields)
             if valid and target_ratio > 0.95:  # Near-optimal solutions
-                artifacts["stdout"] = (
+                artifacts["success_message"] = str(
                     f"Excellent packing! Achieved {target_ratio:.1%} of target value"
                 )
-                artifacts["radius_stats"] = (
-                    f"Min: {validation_details['min_radius']:.6f}, Max: {validation_details['max_radius']:.6f}, Avg: {validation_details['avg_radius']:.6f}"
-                )
+                artifacts["is_near_optimal"] = True
+            else:
+                artifacts["is_near_optimal"] = False
 
+            # Ensure all metrics are primitive numeric types
             metrics = {
-                "combined_score": combined_score,
+                "combined_score": float(combined_score),
+                "sum_radii": float(sum_radii),
+                "target_ratio": float(target_ratio),
+                "validity_score": float(validity),
             }
 
             # Importantly, log the artifacts and metrics otherwise the critic may not surface them
@@ -102,9 +121,21 @@ class CirclePackingCritic(BaseEvaluator):
             print(f"Error occurred: {error_message}")
             print(f"Full traceback:\n{full_traceback}")
 
-            artifacts = {"error": error_message, "validity": 0.0, "traceback": full_traceback}
+            # Ensure error artifacts are flat primitive types
+            artifacts = {
+                "error": str(error_message),
+                "validity": 0.0,
+                "traceback": str(full_traceback),
+                "has_error": True,
+                "combined_score": 0.0,
+            }
+
+            # Ensure error metrics are flat primitive types
             metrics = {
                 "combined_score": 0.0,
+                "sum_radii": 0.0,
+                "target_ratio": 0.0,
+                "validity_score": 0.0,
             }
 
             # Log the error artifacts and metrics (safe)
@@ -175,5 +206,3 @@ if __name__ == "__main__":
 
     critic = CirclePackingCritic()
     result = asyncio.run(critic.evaluate())
-    print("Evaluation Result:", result.metrics)
-    print("Artifacts:", result.artifacts)

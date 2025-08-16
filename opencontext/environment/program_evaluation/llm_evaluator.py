@@ -24,7 +24,12 @@ class LLMEvaluator(BaseEvaluator):
     Simplified implementation that builds prompts directly without PromptSampler.
     """
 
-    def __init__(self, llm: LLMInterface, logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        llm: LLMInterface,
+        template_name: str = "program_eval",
+        logger: Optional[logging.Logger] = None,
+    ):
         """
         Initialize the LLM evaluator
 
@@ -33,11 +38,8 @@ class LLMEvaluator(BaseEvaluator):
         """
         self.llm = llm
         self.logger = logger or logging.getLogger(__name__)
-        # Template manager for system prompts; templates live in environment/templates
-        try:
-            self.template_manager = TemplateManager()
-        except Exception:
-            self.template_manager = None
+        self.template_manager = TemplateManager()
+        self.template_name = template_name
 
     async def evaluate(self, code: str, language: str = "python", **kwargs) -> EvaluationResult:
         """
@@ -55,20 +57,14 @@ class LLMEvaluator(BaseEvaluator):
             raise ValueError("code must be provided for evaluation.")
 
         try:
-            # Build prompt directly without PromptSampler
-            user_prompt = self._build_evaluation_prompt(code, language)
-            # Load system prompt from template if available
-            try:
-                if self.template_manager:
-                    tmpl = self.template_manager.load_template("eval")
-                    system_prompt = tmpl.format(program=code, language=language)
-                else:
-                    system_prompt = self._build_system_prompt()
-            except Exception:
-                system_prompt = self._build_system_prompt()
+            tmpl = self.template_manager.load_template(self.template_name)
+            user_prompt = tmpl.format(program=code, language=language)
 
             # Get LLM response
-            responses = await self.llm.generate(prompt=user_prompt, system_message=system_prompt)
+            responses = await self.llm.generate(
+                prompt=user_prompt,
+                system_message="You are an expert program reviewer and evaluator with more than 15 years of experience in software development and code quality assessment.",
+            )
 
             # Normalize responses: LLM client may return a single string or an iterable
             if not isinstance(responses, (list, tuple)):
@@ -76,6 +72,7 @@ class LLMEvaluator(BaseEvaluator):
 
             # Parse responses and extract metrics
             avg_metrics = {}
+            all_artifacts = {}
             json_pattern = r"```json\n(.*?)\n```"
 
             for i, response in enumerate(responses):
@@ -103,11 +100,23 @@ class LLMEvaluator(BaseEvaluator):
                         # Parse JSON
                         result = json.loads(json_str)
 
-                    # Extract only numeric metrics
+                    # Extract numeric values into metrics and non-numeric into artifacts
                     metrics = {}
+                    artifacts = {}
                     for key, value in result.items():
                         if isinstance(value, (int, float)):
                             metrics[key] = value
+                        else:
+                            # Convert non-numeric values to string artifacts
+                            artifacts[key] = str(value)
+
+                    # Store artifacts from this response (keyed by response index if multiple)
+                    if artifacts:
+                        if len(responses) > 1:
+                            for key, value in artifacts.items():
+                                all_artifacts[f"{key}_response_{i}"] = value
+                        else:
+                            all_artifacts.update(artifacts)
 
                     # Use weights if available (EnsembleLLM), else default to 1.0
                     weight = (
@@ -130,20 +139,7 @@ class LLMEvaluator(BaseEvaluator):
                     continue
 
             # Wrap averaged metrics in EvaluationResult
-            return EvaluationResult(metrics=avg_metrics)
+            return EvaluationResult(metrics=avg_metrics, artifacts=all_artifacts)
         except Exception as e:
             self.logger.error(f"Error in LLM evaluation: {str(e)}")
             raise
-
-    def _build_evaluation_prompt(self, code: str, language: str) -> str:
-        """Builds the user-level evaluation prompt containing the task/instruction."""
-        # Keep a concise instruction for the LLM to return JSON only
-        return f"Please evaluate the following {language} program and return a JSON object with numeric metrics.\n\n{code}"
-
-    def _build_system_prompt(self) -> str:
-        """Fallback system prompt if template loading fails."""
-        return (
-            "You are an automated code evaluator. Assess the provided program and "
-            "return a single JSON object with numeric scores for correctness, readability, "
-            "maintainability, and performance. Include an optional 'notes' string."
-        )

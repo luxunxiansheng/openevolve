@@ -1,7 +1,6 @@
 ## Current Program Information
 - Current performance metrics: {metrics}
 
-
 {artifacts}
 
 
@@ -13,11 +12,6 @@
 ```{language}
 {current_program}
 ```
-
-
-## Task
-Suggest improvements to the program that will lead to better performance on the specified metrics if avaliable.
-
 
 ## Output contract (REQUIRED)
 You MUST return ONLY a single JSON array (no surrounding text). Each array element must be an object with these fields:

@@ -44,8 +44,8 @@ class PromptBuilder:
     def _build_context_prompt(self, action: EvolutionAction) -> str:
         """Build system prompt focusing on program context and state"""
         # Determine mode for template selection
-        mode = EvolutionMode.DIFF if action.mode == "diff" else EvolutionMode.FULL_REWRITE
-        template_name = mode.value  # "diff" or "full_rewrite"
+        
+        template_name = action.mode.value  # "program_diff" or "program_full_rewrite"
 
         # Create context about the current program state
         context_info = {
@@ -64,8 +64,6 @@ class PromptBuilder:
 
         # Load template and inject context
         template = self.template_manager.load_template(template_name)
-
-        # Replace placeholders with context information
         result = template
         for key, value in context_info.items():
             result = result.replace(f"{{{key}}}", str(value))

@@ -7,7 +7,7 @@ like environments, agents, and orchestrators.
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 from .program import Program
 
@@ -15,8 +15,8 @@ from .program import Program
 class EvolutionMode(Enum):
     """Evolution modes for code generation"""
 
-    FULL_REWRITE = "full_rewrite"
-    DIFF = "diff"
+    FULL_REWRITE = "program_full_rewrite"
+    DIFF = "program_diff"
 
 
 @dataclass
@@ -30,10 +30,12 @@ class EvolutionAction:
 
     # INSTRUCTION: What the LLM should achieve and how
     goal: str  # High-level objective like "improve performance", "enhance readability"
-    instructions: Optional[List[str]] = (
-        None  # Specific actions like ["replace recursion with iteration", "add docstrings", "add type hints"]
+    instructions: Optional[List[str]] = field(
+        default_factory=lambda: [
+            "You are an expert programmer and algorithm engineer with over 15 years of experience.",
+            "You will be given a program and a goal. Your task is to evolve the program to meet the goal while adhering to the specified constraints and improvement areas.",
+        ]
     )
-
     # CONTEXT: What the LLM should understand
     current_program: Optional[Program] = None  # The program to evolve
     parent_program: Optional[Program] = None  # Original/parent for reference

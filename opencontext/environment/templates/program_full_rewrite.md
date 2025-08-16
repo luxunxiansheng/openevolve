@@ -1,7 +1,6 @@
 # Current Program Information
 - Current performance metrics: {metrics}
 
-
 {artifacts}
 
 # Program Evolution History
@@ -13,8 +12,7 @@
 ```
 
 # Task
-Rewrite the program to improve its performance on the specified metrics if available.
-Provide the complete new program code.
+Rewrite the program abd provide the complete new program code.
 
 IMPORTANT: Make sure your rewritten program maintains the same inputs and outputs
 as the original program, but with improved internal implementation.

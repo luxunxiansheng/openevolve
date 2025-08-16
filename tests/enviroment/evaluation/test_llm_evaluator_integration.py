@@ -21,6 +21,7 @@ def add(a, b):
         asyncio.set_event_loop(loop)
         try:
             result = loop.run_until_complete(self.evaluator.evaluate(code=code, language="python"))
+            print("Evaluation Result:", result)
         finally:
             loop.close()
 

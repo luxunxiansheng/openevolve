@@ -1,15 +1,3 @@
-"""
-Program Evolution System
-
-This module provides the core program evolution functionality including:
-- LLM-based program generation and improvement
-- Template management for evolution prompts
-- Program extraction from LLM responses
-- Evolution context and prompt building
-
-No external dependencies on utils modules - everything is self-contained.
-"""
-
 import asyncio
 import json
 import re
@@ -66,10 +54,19 @@ class ExtractedProgram:
 class TemplateManager:
     """Manages prompt templates for evolution"""
 
-    def __init__(self, templates_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        templates_dir: Optional[Path] = None,
+        max_history_entries: int = 3,
+        program_preview_length: int = 50,
+        artifact_preview_length: int = 200,
+    ):
         if templates_dir is None:
             templates_dir = Path(__file__).parent / "templates"
         self.templates_dir = templates_dir
+        self.max_history_entries = max_history_entries
+        self.program_preview_length = program_preview_length
+        self.artifact_preview_length = artifact_preview_length
         self._templates_cache = {}
 
     def load_template(self, template_name: str) -> str:
@@ -127,16 +124,19 @@ class TemplateManager:
             return "No previous evolution history available."
 
         history_parts = []
-        for i, program_data in enumerate(evolution_history[-3:], 1):
+        for i, program_data in enumerate(evolution_history[-self.max_history_entries :], 1):
             metrics = program_data.get("metrics", {})
             program_preview = program_data.get("program", program_data.get("code", "N/A"))
 
             # Use explicit outcome if provided, otherwise just show metrics
             outcome = program_data.get("outcome", "See metrics")
 
-            # Create program preview (first 50 chars)
-            if isinstance(program_preview, str) and len(program_preview) > 50:
-                program_preview = program_preview[:50] + "..."
+            # Create program preview
+            if (
+                isinstance(program_preview, str)
+                and len(program_preview) > self.program_preview_length
+            ):
+                program_preview = program_preview[: self.program_preview_length] + "..."
 
             # Format metrics concisely
             metrics_str = (
@@ -165,7 +165,11 @@ class TemplateManager:
         for name, value in artifacts.items():
             if isinstance(value, str):
                 # Text artifact
-                preview = value[:200] + "..." if len(value) > 200 else value
+                preview = (
+                    value[: self.artifact_preview_length] + "..."
+                    if len(value) > self.artifact_preview_length
+                    else value
+                )
                 artifact_parts.append(f"**{name}**: {preview}")
             elif isinstance(value, bytes):
                 # Binary artifact
@@ -257,9 +261,20 @@ class ProgramExtractor:
 class PromptBuilder:
     """Builds prompts for program evolution"""
 
-    def __init__(self, language: str = "python"):
+    def __init__(
+        self,
+        language: str = "python",
+        max_history_entries: int = 3,
+        program_preview_length: int = 50,
+        artifact_preview_length: int = 200,
+    ):
         self.language = language
-        self.template_manager = TemplateManager()
+        self.max_history_entries = max_history_entries
+        self.template_manager = TemplateManager(
+            max_history_entries=max_history_entries,
+            program_preview_length=program_preview_length,
+            artifact_preview_length=artifact_preview_length,
+        )
 
     def build_prompts(self, action: EvolutionAction) -> Tuple[str, str]:
         """Build system and user prompts from evolution action"""
@@ -318,9 +333,9 @@ class PromptBuilder:
         if not previous_programs:
             return []
 
-        # Return the last 3 programs as structured data
+        # Return the most recent programs as structured data
         history_entries = []
-        for i, program_data in enumerate(previous_programs[-3:], 1):
+        for i, program_data in enumerate(previous_programs[-self.max_history_entries :], 1):
             metrics = program_data.get("metrics", {})
 
             history_entries.append(
@@ -328,11 +343,7 @@ class PromptBuilder:
                     "attempt": i,
                     "program": program_data.get("program", program_data.get("code", "")),
                     "metrics": metrics,
-                    "outcome": (
-                        "Improved"
-                        if any(v > 0.5 for v in metrics.values() if isinstance(v, (int, float)))
-                        else "Needs work"
-                    ),
+                    "outcome": program_data.get("outcome", "See metrics"),
                 }
             )
 
@@ -342,11 +353,24 @@ class PromptBuilder:
 class ProgramEvolutionEngine:
     """Complete engine for LLM-based program evolution"""
 
-    def __init__(self, llm: LLMInterface, language: str = "python", max_code_length: int = 20480):
+    def __init__(
+        self,
+        llm: LLMInterface,
+        language: str = "python",
+        max_code_length: int = 20480,
+        max_history_entries: int = 3,
+        program_preview_length: int = 50,
+        artifact_preview_length: int = 200,
+    ):
         self.llm = llm
         self.language = language
         self.max_code_length = max_code_length
-        self.prompt_builder = PromptBuilder(language)
+        self.prompt_builder = PromptBuilder(
+            language=language,
+            max_history_entries=max_history_entries,
+            program_preview_length=program_preview_length,
+            artifact_preview_length=artifact_preview_length,
+        )
         self.program_extractor = ProgramExtractor()
 
     def generate_code(self, action: EvolutionAction) -> str:
@@ -361,6 +385,7 @@ class ProgramEvolutionEngine:
             response = loop.run_until_complete(
                 self.llm.generate(user_prompt, system_message=system_prompt)
             )
+            # Delegate extraction based on requested mode to keep behavior consistent
             return self._extract_code_from_response(response, action.mode)
         finally:
             loop.close()
@@ -392,6 +417,37 @@ class ProgramEvolutionEngine:
             # Full rewrite
             extracted = self.program_extractor.extract_full_rewrite(response, self.language)
             if extracted.success:
-                return extracted.program or response
+                new_code = extracted.program or response
+                # Ensure evolved code is enclosed in EVOLVE block comments
+                return self._enclose_code_block(new_code)
             else:
                 raise ValueError("Failed to extract code from full rewrite response")
+
+    def _enclose_code_block(self, code: str) -> str:
+        """Wrap code with EVOLVE-BLOCK markers if they are not already present.
+
+        Uses language-appropriate single-line comment prefix (defaults to '#').
+        Strips surrounding triple-backtick fences if present before wrapping.
+        """
+        if "EVOLVE-BLOCK-START" in code and "EVOLVE-BLOCK-END" in code:
+            return code
+
+        lang = (self.language or "").lower()
+        comment_prefix = "#" if lang in ("python", "py", "bash", "sh") else "//"
+
+        # Strip common code fence wrappers
+        stripped = code.strip()
+        if stripped.startswith("```"):
+            lines = stripped.splitlines()
+            # remove first fence line
+            inner = (
+                "\n".join(lines[1:-1])
+                if len(lines) > 2 and lines[-1].strip().startswith("```")
+                else "\n".join(lines[1:])
+            )
+        else:
+            inner = stripped
+
+        start = f"{comment_prefix} EVOLVE-BLOCK-START"
+        end = f"{comment_prefix} EVOLVE-BLOCK-END"
+        return f"{start}\n{inner}\n{end}"

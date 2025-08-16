@@ -8,8 +8,6 @@ from .program_evolution import (
     PromptBuilder,
     TemplateManager,
     ProgramExtractor,
-    EvolutionMode,
-    PromptContext,
     ExtractedProgram,
 )
 
@@ -19,7 +17,5 @@ __all__ = [
     "PromptBuilder",
     "TemplateManager",
     "ProgramExtractor",
-    "EvolutionMode",
-    "PromptContext",
     "ExtractedProgram",
 ]

@@ -2,7 +2,7 @@ import asyncio
 import os
 import unittest
 
-from opencontext.common.actions import EvolutionAction
+from opencontext.common.actions import EvolutionAction, EvolutionMode
 from opencontext.common.program import Program
 from opencontext.environment.program_evolution import ProgramEvolutionEngine
 from opencontext.llm.llm_openai import OpenAILLM
@@ -23,15 +23,14 @@ class TestProgramEvolutionEngineIntegration(unittest.TestCase):
         )
 
         action = EvolutionAction(
-            task="Add a docstring to the function",
+            goal="Add a docstring to the function",
+            instructions=["Add a docstring to the function"],
             current_program=current_program,
-            mode="full_rewrite",
+            mode=EvolutionMode.FULL_REWRITE,
         )
 
         # Run the async generation; if it fails the exception will surface
-        result = asyncio.get_event_loop().run_until_complete(
-            self.engine.generate_code_async(action)
-        )
+        result = asyncio.run(self.engine.generate_code(action))
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -41,11 +40,12 @@ class TestProgramEvolutionEngineIntegration(unittest.TestCase):
         )
 
         action = EvolutionAction(
-            task="Add a short docstring",
+            goal="Add a short docstring",
+            instructions=["Add a short docstring"],
             current_program=current_program,
-            mode="full_rewrite",
+            mode=EvolutionMode.FULL_REWRITE,
         )
-        result = self.engine.generate_code(action)
+        result = asyncio.run(self.engine.generate_code(action))
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 

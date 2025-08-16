@@ -1,6 +1,6 @@
 # Current Program Information
 - Current performance metrics: {metrics}
-- Areas identified for improvement: {improvement_areas}
+
 
 {artifacts}
 
@@ -13,7 +13,7 @@
 ```
 
 # Task
-Rewrite the program to improve its performance on the specified metrics.
+Rewrite the program to improve its performance on the specified metrics if available.
 Provide the complete new program code.
 
 IMPORTANT: Make sure your rewritten program maintains the same inputs and outputs

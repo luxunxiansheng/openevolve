@@ -6,6 +6,7 @@ Combines generic evolution instructions with specific action-provided instructio
 """
 
 from typing import Any, Dict, Optional, Callable
+import asyncio
 from dataclasses import asdict
 import gymnasium as gym
 from gymnasium import spaces
@@ -70,7 +71,7 @@ class ProgramEvolutionEnv(gym.Env):
             )
 
         try:
-            program = self.evolution_engine.generate_code(action)
+            program = asyncio.run(self.evolution_engine.generate_code(action))
             if not program or not program.strip():
                 return self._create_error_response("Empty program generated")
 

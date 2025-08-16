@@ -4,7 +4,6 @@ Program Evolution Engine Module
 Main orchestrator for LLM-based program evolution.
 """
 
-import asyncio
 
 from opencontext.common.actions import EvolutionAction
 from opencontext.llm.llm_interface import LLMInterface
@@ -35,25 +34,8 @@ class ProgramEvolutionEngine:
         )
         self.program_extractor = ProgramExtractor()
 
-    def generate_code(self, action: EvolutionAction) -> str:
+    async def generate_code(self, action: EvolutionAction) -> str:
         """Generate improved code from evolution action"""
-        # Build prompts
-        system_prompt, user_prompt = self.prompt_builder.build_prompts(action)
-
-        # Run async generation in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            response = loop.run_until_complete(
-                self.llm.generate(user_prompt, system_message=system_prompt)
-            )
-            # Delegate extraction based on requested mode to keep behavior consistent
-            return self._extract_code_from_response(response, action.mode.value)
-        finally:
-            loop.close()
-
-    async def generate_code_async(self, action: EvolutionAction) -> str:
-        """Generate improved code asynchronously"""
         system_prompt, user_prompt = self.prompt_builder.build_prompts(action)
         response = await self.llm.generate(user_prompt, system_message=system_prompt)
         return self._extract_code_from_response(response, action.mode.value)

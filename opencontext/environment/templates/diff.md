@@ -1,6 +1,6 @@
 ## Current Program Information
 - Current performance metrics: {metrics}
-- Areas identified for improvement: {improvement_areas}
+
 
 {artifacts}
 
@@ -16,7 +16,7 @@
 
 
 ## Task
-Suggest improvements to the program that will lead to better performance on the specified metrics.
+Suggest improvements to the program that will lead to better performance on the specified metrics if avaliable.
 
 
 ## Output contract (REQUIRED)

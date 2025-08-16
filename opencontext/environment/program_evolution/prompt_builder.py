@@ -55,6 +55,7 @@ class PromptBuilder:
                 action.current_program.metrics if action.current_program else {}
             ),
             "evolution_history": self._format_evolution_history_for_template(action),
+            
             "artifacts": self._format_artifacts(
                 action.current_program.metadata.get("artifacts", {})
                 if action.current_program

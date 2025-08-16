@@ -10,6 +10,7 @@ from .program_evolution import (
     ProgramExtractor,
     ExtractedProgram,
 )
+from .logging_utils import setup_environment_logging, get_environment_logger
 
 __all__ = [
     "ProgramEvolutionEnv",
@@ -18,4 +19,6 @@ __all__ = [
     "TemplateManager",
     "ProgramExtractor",
     "ExtractedProgram",
+    "setup_environment_logging",
+    "get_environment_logger",
 ]

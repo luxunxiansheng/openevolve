@@ -5,3 +5,4 @@
 
 - Don't generate any summary report. 
 - Don't put files in the repository root arbitrarily; create a dedicated subfolder for their specific purpose and remove it when it's no longer needed.
+- Avoid to use Mock and Dummy things when unit test. Try to use real stuff.

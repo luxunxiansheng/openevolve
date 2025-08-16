@@ -9,11 +9,14 @@ import os
 import tempfile
 import time
 import uuid
-from typing import Dict
+from typing import Dict, Union
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from opencontext.environment.program_evaluation.base_evaluator import BaseEvaluator, EvaluationResult
+from opencontext.environment.program_evaluation.base_evaluator import (
+    BaseEvaluator,
+    EvaluationResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +106,18 @@ class ExecutionEvaluator(BaseEvaluator):
 
                 # Wait for job completion and get results
                 log_output = self._wait_for_job_completion(submission_id)
-                metrics = self._extract_metrics_from_logs(log_output)
+                metrics, artifacts = self._extract_metrics_and_artifacts_from_logs(log_output)
 
-                logger.debug(f"Extracted metrics: {metrics}")
-                # Wrap metrics in EvaluationResult for backward compatibility
-                return EvaluationResult(metrics=metrics)
+                logger.info(f"Extracted {len(metrics)} metrics: {list(metrics.keys())}")
+                logger.info(f"Extracted {len(artifacts)} artifacts: {list(artifacts.keys())}")
+                logger.debug(f"Metrics values: {metrics}")
+                if artifacts:
+                    logger.debug(
+                        f"Artifacts preview: {[(k, str(v)[:100] + '...' if len(str(v)) > 100 else str(v)) for k, v in artifacts.items()]}"
+                    )
+
+                # Wrap metrics and artifacts in EvaluationResult
+                return EvaluationResult(metrics=metrics, artifacts=artifacts)
 
         except Exception as e:
             logger.error(f"Execution evaluation failed: {e}")
@@ -204,14 +214,17 @@ class ExecutionEvaluator(BaseEvaluator):
                 break
             time.sleep(0.5)
 
-    def _extract_metrics_from_logs(self, log_output: str) -> Dict[str, float]:
-        """Extract evaluation metrics from job logs using exe_critic patterns."""
+    def _extract_metrics_and_artifacts_from_logs(
+        self, log_output: str
+    ) -> tuple[Dict[str, float], Dict[str, Union[str, bytes]]]:
+        """Extract evaluation metrics and artifacts from job logs using exe_critic patterns."""
         import re
 
         metrics = {}
+        artifacts = {}
 
         try:
-            # Parse metrics using patterns similar to exe_critic
+            # Parse metrics and artifacts using patterns similar to exe_critic
             lines = log_output.split("\n")
 
             for line in lines:
@@ -223,23 +236,39 @@ class ExecutionEvaluator(BaseEvaluator):
                     key, value = metric_match.groups()
                     try:
                         metrics[key.strip()] = float(value.strip())
+                        logger.debug(f"Extracted metric: {key.strip()} = {value.strip()}")
                     except ValueError:
                         logger.warning(f"Could not parse metric value '{value}' for key '{key}'")
                         continue
 
+                # Look for "Artifact name: value" pattern for non-numeric data
+                artifact_match = re.match(r"^Artifact\s+([^:]+):\s*(.+)$", line)
+                if artifact_match:
+                    key, value = artifact_match.groups()
+                    artifacts[key.strip()] = value.strip()
+                    logger.debug(f"Extracted artifact: {key.strip()} = {value.strip()[:50]}...")
+
                 # Also handle direct key: value patterns
-                elif ":" in line and not line.startswith(("INFO", "DEBUG", "WARNING", "ERROR")):
+                elif ":" in line and not line.startswith(
+                    ("INFO", "DEBUG", "WARNING", "ERROR", "Artifact")
+                ):
                     parts = line.split(":", 1)
                     if len(parts) == 2:
                         key, value = parts
                         key = key.strip().lower()
                         try:
+                            # Try to parse as numeric metric first
                             metrics[key] = float(value.strip())
+                            logger.debug(f"Extracted metric: {key} = {value.strip()}")
                         except ValueError:
+                            # If not numeric, treat as artifact
+                            artifacts[key] = value.strip()
+                            logger.debug(f"Extracted artifact: {key} = {value.strip()[:50]}...")
                             continue
 
-            return metrics
+            logger.info(f"Total extraction: {len(metrics)} metrics, {len(artifacts)} artifacts")
+            return metrics, artifacts
 
         except Exception as e:
-            logger.error(f"Failed to extract metrics from logs: {e}")
+            logger.error(f"Failed to extract metrics and artifacts from logs: {e}")
             raise

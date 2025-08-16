@@ -6,9 +6,9 @@ Combines generic evolution instructions with specific action-provided instructio
 """
 
 from typing import Any, Dict, Optional, Callable
+from dataclasses import asdict
 import gymnasium as gym
 from gymnasium import spaces
-import numpy as np
 
 from opencontext.common.actions import EvolutionAction
 from opencontext.llm.llm_interface import LLMInterface
@@ -39,32 +39,13 @@ class ProgramEvolutionEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 "generated_program": spaces.Text(max_length=50000),
-                "evaluation_metrics": spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
-                ),
+                "evaluation_metrics": spaces.Dict({}),  # Dynamic dict for flexible metrics
                 "success": spaces.Discrete(2),
             }
         )
 
         self.episode_count = 0
         self.total_steps = 0
-
-    def _default_reward_calculator(self, metrics: Dict[str, Any]) -> float:
-        """Calculate reward from metrics using safe numeric average"""
-        if not metrics:
-            return 0.0
-
-        numeric_values = []
-        for value in metrics.values():
-            if isinstance(value, (int, float)):
-                try:
-                    float_val = float(value)
-                    if float_val == float_val:  # Check for not NaN
-                        numeric_values.append(float_val)
-                except (ValueError, TypeError, OverflowError):
-                    continue
-
-        return sum(numeric_values) / len(numeric_values) if numeric_values else 0.0
 
     def reset(self, *, seed=None, options=None):
         """Reset for new episode"""
@@ -73,7 +54,7 @@ class ProgramEvolutionEnv(gym.Env):
 
         obs = {
             "generated_program": "",
-            "evaluation_metrics": np.zeros(10, dtype=np.float32),
+            "evaluation_metrics": {},
             "success": 0,
         }
         info = {"episode": self.episode_count}
@@ -99,20 +80,29 @@ class ProgramEvolutionEnv(gym.Env):
         except Exception as e:
             return self._create_error_response(f"Step failed: {str(e)}")
 
+    def render(self, mode="human"):
+        """Simple render"""
+        if mode == "human":
+            print(f"Episode: {self.episode_count}, Steps: {self.total_steps}")
+
+    def close(self):
+        """Cleanup"""
+        pass
+
     def _create_success_response(
         self, program: str, metrics: Dict[str, float], action: EvolutionAction
     ):
         """Create successful step response"""
         obs = {
             "generated_program": program,
-            "evaluation_metrics": self._metrics_to_array(metrics),
+            "evaluation_metrics": metrics,  # Keep as dict
             "success": 1,
         }
         info = {
             "raw_metrics": metrics,
             "generation_success": True,
             "evaluation_success": True,
-            "evolution_action": action.to_dict(),
+            "evolution_action": asdict(action),
         }
         reward = self.reward_extractor(metrics)
         return obs, reward, False, False, info
@@ -121,7 +111,7 @@ class ProgramEvolutionEnv(gym.Env):
         """Create error response"""
         obs = {
             "generated_program": "",
-            "evaluation_metrics": np.zeros(10, dtype=np.float32),
+            "evaluation_metrics": {},
             "success": 0,
         }
         info = {"error": error_msg, "raw_metrics": {"error": 1.0}}
@@ -164,20 +154,19 @@ class ProgramEvolutionEnv(gym.Env):
         finally:
             loop.close()
 
-    def _metrics_to_array(self, metrics: Dict[str, float]) -> np.ndarray:
-        """Convert metrics to fixed array"""
-        array = np.zeros(10, dtype=np.float32)
-        for i, value in enumerate(metrics.values()):
-            if i >= 10:
-                break
-            array[i] = float(value)
-        return array
+    def _default_reward_calculator(self, metrics: Dict[str, Any]) -> float:
+        """Calculate reward from metrics using safe numeric average"""
+        if not metrics:
+            return 0.0
 
-    def render(self, mode="human"):
-        """Simple render"""
-        if mode == "human":
-            print(f"Episode: {self.episode_count}, Steps: {self.total_steps}")
+        numeric_values = []
+        for value in metrics.values():
+            if isinstance(value, (int, float)):
+                try:
+                    float_val = float(value)
+                    if float_val == float_val:  # Check for not NaN
+                        numeric_values.append(float_val)
+                except (ValueError, TypeError, OverflowError):
+                    continue
 
-    def close(self):
-        """Cleanup"""
-        pass
+        return sum(numeric_values) / len(numeric_values) if numeric_values else 0.0

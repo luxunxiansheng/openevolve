@@ -3,6 +3,7 @@ import os
 import unittest
 
 from opencontext.common.actions import EvolutionAction
+from opencontext.common.program import Program
 from opencontext.environment.program_evolution import ProgramEvolutionEngine
 from opencontext.llm.llm_openai import OpenAILLM
 
@@ -17,10 +18,13 @@ class TestProgramEvolutionEngineIntegration(unittest.TestCase):
         self.engine = ProgramEvolutionEngine(self.llm)
 
     def test_generate_code_async_full_rewrite(self):
+        current_program = Program(
+            id="test-1", code="def add(a, b):\n    return a+b", language="python"
+        )
+
         action = EvolutionAction(
-            instruction="Add a docstring to the function",
-            current_program="def add(a, b):\n    return a+b",
-            current_score=0.5,
+            task="Add a docstring to the function",
+            current_program=current_program,
             mode="full_rewrite",
         )
 
@@ -32,10 +36,13 @@ class TestProgramEvolutionEngineIntegration(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
     def test_generate_code_sync_wrapper(self):
+        current_program = Program(
+            id="test-2", code="def add(a, b):\n    return a+b", language="python"
+        )
+
         action = EvolutionAction(
-            instruction="Add a short docstring",
-            current_program="def add(a, b):\n    return a+b",
-            current_score=0.5,
+            task="Add a short docstring",
+            current_program=current_program,
             mode="full_rewrite",
         )
         result = self.engine.generate_code(action)

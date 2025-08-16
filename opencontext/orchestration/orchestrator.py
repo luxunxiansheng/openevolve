@@ -14,8 +14,7 @@ from opencontext.critic.llm_critic import LLMCritic
 from opencontext.database.database import Program, ProgramDatabase
 from opencontext.llm.llm_ensemble import EnsembleLLM
 from ..llm.llm_openai import OpenAILLM
-from opencontext.prompt.sampler import PromptSampler
-from opencontext.prompt.templates import Templates
+from opencontext.environment.program_evolution import PromptBuilder
 from opencontext.utils.metrics_utils import safe_numeric_average
 
 

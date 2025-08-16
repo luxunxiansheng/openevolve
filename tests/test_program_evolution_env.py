@@ -35,8 +35,7 @@ class TestProgramEvolutionEnv(unittest.TestCase):
         self.assertIsNotNone(self.env.llm)
         self.assertIsNotNone(self.env.exe_evaluator)
         self.assertIsNotNone(self.env.llm_evaluator)
-        self.assertIsNotNone(self.env.prompt_builder)
-        self.assertIsNotNone(self.env.code_generator)
+        self.assertIsNotNone(self.env.evolution_llm)
         self.assertEqual(self.env.language, "python")
         self.assertEqual(self.env.default_mode, "full_rewrite")
 

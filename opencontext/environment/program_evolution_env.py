@@ -12,21 +12,12 @@ import numpy as np
 
 from opencontext.common.actions import EvolutionAction
 from opencontext.llm.llm_interface import LLMInterface
-from opencontext.utils.metrics_utils import safe_numeric_average
 from opencontext.environment.evaluators import ExecutionEvaluator, LLMEvaluator
-from opencontext.environment.prompts import PromptBuilder
-from opencontext.environment.code_generation import CodeGenerator
+from opencontext.environment.program_evolution import ProgramEvolutionEngine
 
 
 class ProgramEvolutionEnv(gym.Env):
-    """
-    Stateless gymnasium environment acting as a proxy for LLM-based program evolution.
-
-    - Acts as proxy between actions and LLM backend
-    - Combines generic evolution instructions with action-specific instructions
-    - Handles LLM communication and response parsing
-    - Evaluates generated code and returns metrics
-    """
+    """Stateless gymnasium environment for LLM-based program evolution"""
 
     def __init__(
         self,
@@ -35,32 +26,16 @@ class ProgramEvolutionEnv(gym.Env):
         llm_evaluator: Optional[LLMEvaluator] = None,
         reward_extractor: Optional[Callable[[Dict[str, Any]], float]] = None,
         language: str = "python",
-        max_code_length: int = 20480,
-        default_mode: str = "full_rewrite",
     ):
         super().__init__()
-
-        self.llm = llm
         self.exe_evaluator = exe_evaluator
         self.llm_evaluator = llm_evaluator
         self.language = language
-        self.reward_extractor = reward_extractor or self._default_reward
-        self.max_code_length = max_code_length
-        self.default_mode = default_mode
+        self.reward_extractor = reward_extractor or self._default_reward_calculator
+        self.evolution_engine = ProgramEvolutionEngine(llm, language)
 
-        # Initialize specialized components
-        self.prompt_builder = PromptBuilder(language)
-        self.code_generator = CodeGenerator(llm, language, max_code_length)
-
-        # Action space expects EvolutionAction objects only
-        # This is just for gym compatibility - actual validation is done in step()
-        self.action_space = spaces.Dict(
-            {
-                "instruction": spaces.Text(max_length=10000),
-                "mode": spaces.Text(max_length=20),
-            }
-        )
-
+        # Minimal gym spaces for compatibility
+        self.action_space = spaces.Dict({"instruction": spaces.Text(max_length=10000)})
         self.observation_space = spaces.Dict(
             {
                 "generated_program": spaces.Text(max_length=50000),
@@ -73,6 +48,23 @@ class ProgramEvolutionEnv(gym.Env):
 
         self.episode_count = 0
         self.total_steps = 0
+
+    def _default_reward_calculator(self, metrics: Dict[str, Any]) -> float:
+        """Calculate reward from metrics using safe numeric average"""
+        if not metrics:
+            return 0.0
+
+        numeric_values = []
+        for value in metrics.values():
+            if isinstance(value, (int, float)):
+                try:
+                    float_val = float(value)
+                    if float_val == float_val:  # Check for not NaN
+                        numeric_values.append(float_val)
+                except (ValueError, TypeError, OverflowError):
+                    continue
+
+        return sum(numeric_values) / len(numeric_values) if numeric_values else 0.0
 
     def reset(self, *, seed=None, options=None):
         """Reset for new episode"""
@@ -88,210 +80,91 @@ class ProgramEvolutionEnv(gym.Env):
         return obs, info
 
     def step(self, action: EvolutionAction):
-        """
-        Execute one step: process action, build prompts, generate and evaluate code
-
-        Args:
-                action: Evolution action (must be EvolutionAction object)
-
-        Returns:
-                Tuple of (observation, reward, terminated, truncated, info)
-        """
+        """Execute evolution step: generate and evaluate program"""
         self.total_steps += 1
 
-        # Validate action type
         if not isinstance(action, EvolutionAction):
-            return self._error_response(
+            return self._create_error_response(
                 f"Invalid action type: {type(action)}. Must be EvolutionAction."
             )
 
-        # Build prompts
-        prompts = self._build_prompts(action)
-        if prompts is None:
-            return self._error_response("Failed to build prompts")
+        try:
+            program = self.evolution_engine.generate_code(action)
+            if not program or not program.strip():
+                return self._create_error_response("Empty program generated")
 
-        system_prompt, user_prompt = prompts
+            metrics = self._evaluate_program(program)
+            return self._create_success_response(program, metrics, action)
 
-        # Generate code
-        generation_result = self._generate_code(system_prompt, user_prompt)
-        if not generation_result["success"]:
-            return self._error_response(generation_result["error"])
+        except Exception as e:
+            return self._create_error_response(f"Step failed: {str(e)}")
 
-        new_program = generation_result["program"]
-
-        # Evaluate code
-        evaluation_result = self._evaluate_code_safe(new_program)
-        if not evaluation_result["success"]:
-            return self._error_response(evaluation_result["error"], new_program)
-
-        metrics = evaluation_result["metrics"]
-
-        # Build response
-        return self._build_response(
-            evolution_action=action,
-            new_program=new_program,
-            metrics=metrics,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            generation_success=True,
-            evaluation_success=True,
-        )
-
-    def _error_response(self, error_msg: str, program: str = ""):
-        """Create error response"""
+    def _create_success_response(
+        self, program: str, metrics: Dict[str, float], action: EvolutionAction
+    ):
+        """Create successful step response"""
         obs = {
             "generated_program": program,
+            "evaluation_metrics": self._metrics_to_array(metrics),
+            "success": 1,
+        }
+        info = {
+            "raw_metrics": metrics,
+            "generation_success": True,
+            "evaluation_success": True,
+            "evolution_action": action.to_dict(),
+        }
+        reward = self.reward_extractor(metrics)
+        return obs, reward, False, False, info
+
+    def _create_error_response(self, error_msg: str):
+        """Create error response"""
+        obs = {
+            "generated_program": "",
             "evaluation_metrics": np.zeros(10, dtype=np.float32),
             "success": 0,
         }
-        info = {
-            "error": error_msg,
-            "raw_metrics": {"error": 1.0},
-            "generation_success": bool(program),
-            "evaluation_success": False,
-        }
-        reward = self.reward_extractor(info)
-        return obs, reward, False, False, info
+        info = {"error": error_msg, "raw_metrics": {"error": 1.0}}
+        return obs, 0.0, False, False, info
 
-    def _build_prompts(self, evolution_action: EvolutionAction) -> Optional[tuple[str, str]]:
-        """
-        Build system and user prompts
-
-        Returns:
-                (system_prompt, user_prompt) tuple if successful, None if failed
-        """
-        try:
-            return self.prompt_builder.build_prompts(evolution_action)
-        except Exception:
-            return None
-
-    def _generate_code(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-        """
-        Generate code using LLM
-
-        Returns:
-                Result dict with success, error, and program fields
-        """
-        try:
-            program = self.code_generator.generate_code(system_prompt, user_prompt)
-            if not program or not program.strip():
-                return {"success": False, "error": "Empty program generated", "program": ""}
-            return {"success": True, "error": "", "program": program}
-        except Exception as e:
-            return {"success": False, "error": f"Code generation failed: {str(e)}", "program": ""}
-
-    def _evaluate_code_safe(self, code: str) -> Dict[str, Any]:
-        """
-        Safely evaluate code
-
-        Returns:
-                Result dict with success, error, and metrics fields
-        """
-        try:
-            metrics = self._evaluate_code(code)
-            if not metrics:
-                return {"success": False, "error": "No evaluation metrics returned", "metrics": {}}
-            return {"success": True, "error": "", "metrics": metrics}
-        except Exception as e:
-            return {"success": False, "error": f"Code evaluation failed: {str(e)}", "metrics": {}}
-
-    def _build_response(
-        self,
-        evolution_action: EvolutionAction,
-        new_program: str,
-        metrics: Dict[str, float],
-        system_prompt: str,
-        user_prompt: str,
-        generation_success: bool,
-        evaluation_success: bool,
-    ) -> tuple:
-        """
-        Build the final step response
-
-        Returns:
-                Standard gym step tuple (obs, reward, terminated, truncated, info)
-        """
-        obs = {
-            "generated_program": new_program,
-            "evaluation_metrics": self._to_array(metrics),
-            "success": int(generation_success and evaluation_success),
-        }
-
-        info = {
-            "raw_metrics": metrics,
-            "generation_success": generation_success,
-            "evaluation_success": evaluation_success,
-            "evolution_action": evolution_action.to_dict(),
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
-        }
-
-        reward = self.reward_extractor(info)
-        return obs, reward, False, False, info
-
-    def _evaluate_code(self, code: str) -> Dict[str, float]:
-        """
-        Evaluate code using available evaluators
-
-        Args:
-                code: Code to evaluate
-
-        Returns:
-                Dictionary of evaluation metrics
-        """
+    def _evaluate_program(self, code: str) -> Dict[str, float]:
+        """Evaluate code using available evaluators"""
         import asyncio
 
-        # Start with execution evaluation
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
         try:
-            # Get execution metrics
-            result = loop.run_until_complete(
+            # Execution evaluation
+            exe_result = loop.run_until_complete(
                 self.exe_evaluator.evaluate(code=code, language=self.language)
             )
+            result = (
+                exe_result.to_dict()
+                if hasattr(exe_result, "to_dict")
+                else exe_result.metrics if hasattr(exe_result, "metrics") else {}
+            )
 
-            # Add LLM evaluation if available
+            # Optional LLM evaluation
             if self.llm_evaluator:
                 try:
                     llm_result = loop.run_until_complete(
                         self.llm_evaluator.evaluate(code=code, language=self.language)
                     )
-                    # Add LLM metrics with prefix to avoid conflicts
-                    for key, value in llm_result.items():
+                    llm_metrics = (
+                        llm_result.to_dict()
+                        if hasattr(llm_result, "to_dict")
+                        else llm_result.metrics if hasattr(llm_result, "metrics") else {}
+                    )
+                    for key, value in llm_metrics.items():
                         result[f"llm_{key}"] = value
                 except Exception:
-                    # LLM evaluation is optional, don't fail if it errors
-                    pass
+                    pass  # LLM evaluation is optional
 
-            # Clean and validate metrics
-            return self._clean_metrics(result)
+            return {k: float(v) if isinstance(v, (int, float)) else 0.0 for k, v in result.items()}
         finally:
             loop.close()
 
-    def _clean_metrics(self, metrics: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Clean and validate metrics, converting all values to floats
-
-        Args:
-                metrics: Raw metrics dictionary
-
-        Returns:
-                Cleaned metrics dictionary with float values
-        """
-        clean_metrics = {}
-
-        for key, value in metrics.items():
-            try:
-                # Convert to float, handling various numeric types
-                clean_metrics[key] = float(value)
-            except (ValueError, TypeError):
-                # If conversion fails, use 0.0 as default
-                clean_metrics[key] = 0.0
-
-        return clean_metrics
-
-    def _to_array(self, metrics: Dict[str, float]) -> np.ndarray:
+    def _metrics_to_array(self, metrics: Dict[str, float]) -> np.ndarray:
         """Convert metrics to fixed array"""
         array = np.zeros(10, dtype=np.float32)
         for i, value in enumerate(metrics.values()):
@@ -299,11 +172,6 @@ class ProgramEvolutionEnv(gym.Env):
                 break
             array[i] = float(value)
         return array
-
-    def _default_reward(self, info: Dict[str, Any]) -> float:
-        """Default reward: average of metrics"""
-        metrics = info.get("raw_metrics", {})
-        return safe_numeric_average(metrics)
 
     def render(self, mode="human"):
         """Simple render"""

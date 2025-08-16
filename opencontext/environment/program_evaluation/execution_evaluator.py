@@ -13,7 +13,7 @@ from typing import Dict
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
-from opencontext.environment.evaluators.base_evaluator import BaseEvaluator, EvaluationResult
+from opencontext.environment.program_evaluation.base_evaluator import BaseEvaluator, EvaluationResult
 
 logger = logging.getLogger(__name__)
 

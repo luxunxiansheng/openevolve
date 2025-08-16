@@ -4,7 +4,6 @@ Program Evolution Engine Module
 Main orchestrator for LLM-based program evolution.
 """
 
-import asyncio
 import logging
 import time
 from typing import Optional
@@ -16,7 +15,7 @@ from .program_extractor import ProgramExtractor
 
 
 class ProgramEvolutionEngine:
-    """Complete engine for LLM-based program evolution"""
+    
 
     def __init__(
         self,

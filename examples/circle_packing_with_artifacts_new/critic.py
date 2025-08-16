@@ -1,4 +1,4 @@
-from opencontext.environment.evaluators.base_evaluator import BaseEvaluator, EvaluationResult
+from opencontext.environment.program_evaluation.base_evaluator import BaseEvaluator, EvaluationResult
 import numpy as np
 import logging
 

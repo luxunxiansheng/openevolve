@@ -15,7 +15,7 @@ from gymnasium import spaces
 
 from opencontext.common.actions import EvolutionAction
 from opencontext.llm.llm_interface import LLMInterface
-from opencontext.environment.evaluators import ExecutionEvaluator, LLMEvaluator
+from opencontext.environment.program_evaluation import ExecutionEvaluator, LLMEvaluator
 from opencontext.environment.program_evolution import ProgramEvolutionEngine
 
 

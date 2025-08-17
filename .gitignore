@@ -54,4 +54,4 @@ htmlcov/
 secrets.yaml
 problems
 .env
-/LLM-Models
+/LLM-Models/models

@@ -2,10 +2,10 @@
 Base evaluator class for program evaluation in the environment
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
-
 
 
 @dataclass
@@ -55,7 +55,6 @@ class EvaluationResult:
         return sum(self.get_artifact_size(key) for key in self.artifacts.keys())
 
 
-
 class BaseEvaluator(ABC):
     """
     Abstract base class for program evaluators
@@ -63,14 +62,18 @@ class BaseEvaluator(ABC):
     All evaluators should inherit from this class and implement the evaluate method.
     """
 
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, logger: Optional[logging.Logger] = None):
         """
         Initialize the evaluator
 
         Args:
-                name: Optional name for the evaluator
+            name: Optional name for the evaluator
+            logger: Optional logger instance, creates default if not provided
         """
         self.name = name or self.__class__.__name__
+        self.logger = logger or logging.getLogger(
+            f"{self.__class__.__module__}.{self.__class__.__name__}"
+        )
 
     @abstractmethod
     async def evaluate(self, code: str, language: str = "python", **kwargs) -> EvaluationResult:
@@ -97,32 +100,36 @@ class BaseEvaluator(ABC):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name='{self.name}')"
 
-
     def log_metrics(self, metrics: Dict[str, float]) -> None:
         """
-        Log the metrics during evaluation. The defalut implementation is to print the metrics.
-        :param metrics: A dictionary containing metric names and their values.
-        :return: None
+        Log the metrics during evaluation. Uses logger if available, otherwise prints.
 
+        Args:
+            metrics: A dictionary containing metric names and their values.
         """
         for key, value in metrics.items():
-            print(f"Metric {key}: {value}")
-        
-    
-    
-    def log_artifact(self, artifacts:Dict[str, Union[str, bytes]]) -> None:
+            message = f"Metric {key}: {value}"
+            if self.logger:
+                self.logger.info(message)
+            else:
+                print(message)
+
+    def log_artifact(self, artifacts: Dict[str, Union[str, bytes]]) -> None:
         """
-        Log an artifact during evaluation. The default implementation is to print the artifact 
+        Log an artifact during evaluation. Uses logger if available, otherwise prints.
 
-
-        :param artifacts: A dictionary containing artifact keys and their values.
-        :return: None
-        
+        Args:
+            artifacts: A dictionary containing artifact keys and their values.
         """
         for key, value in artifacts.items():
             if isinstance(value, str):
-                print(f"Artifact {key}: {value}")
+                message = f"Artifact {key}: {value}"
             elif isinstance(value, bytes):
-                print(f"Artifact {key}: {len(value)} bytes")
+                message = f"Artifact {key}: {len(value)} bytes"
             else:
-                print(f"Artifact {key}: {str(value)}")
+                message = f"Artifact {key}: {str(value)}"
+
+            if self.logger:
+                self.logger.info(message)
+            else:
+                print(message)

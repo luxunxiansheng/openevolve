@@ -147,14 +147,13 @@ class ProgramEvolutionEngine:
                 if extracted.success:
                     new_code = extracted.program or response
                     # Ensure evolved code is enclosed in EVOLVE block comments
-                    result = self._enclose_code_block(new_code)
-
+                   
                     self.logger.debug(
                         "Full rewrite extraction successful",
                         extra={"extracted_code_length": len(new_code)},
                     )
 
-                    return result
+                    return new_code
                 else:
                     error_msg = "Failed to extract code from full rewrite response"
                     self.logger.error(
@@ -169,37 +168,4 @@ class ProgramEvolutionEngine:
             )
             raise
 
-    def _enclose_code_block(self, code: str) -> str:
-        """Wrap code with EVOLVE-BLOCK markers if they are not already present.
 
-        Uses language-appropriate single-line comment prefix (defaults to '#').
-        Strips surrounding triple-backtick fences if present before wrapping.
-        """
-        if "EVOLVE-BLOCK-START" in code and "EVOLVE-BLOCK-END" in code:
-            return code
-
-        lang = (self.language or "").lower()
-        comment_prefix = "#" if lang in ("python", "py", "bash", "sh") else "//"
-
-        # Strip common code fence wrappers
-        stripped = code.strip()
-        if stripped.startswith("```"):
-            lines = stripped.splitlines()
-            # remove first fence line
-            inner = (
-                "\n".join(lines[1:-1])
-                if len(lines) > 2 and lines[-1].strip().startswith("```")
-                else "\n".join(lines[1:])
-            )
-        else:
-            inner = stripped
-
-        start = f"{comment_prefix} EVOLVE-BLOCK-START"
-        end = f"{comment_prefix} EVOLVE-BLOCK-END"
-
-        self.logger.debug(
-            "Code block enclosed",
-            extra={"comment_prefix": comment_prefix, "code_length": len(inner)},
-        )
-
-        return f"{start}\n{inner}\n{end}"

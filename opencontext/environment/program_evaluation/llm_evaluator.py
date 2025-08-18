@@ -34,10 +34,14 @@ class LLMEvaluator(BaseEvaluator):
         Initialize the LLM evaluator
 
         Args:
-                llm: Language model interface for evaluation
+            llm: Language model interface for evaluation
+            template_name: Name of the template to use for evaluation
+            logger: Optional logger instance
         """
+        # Initialize parent class with logger
+        super().__init__(name="LLMEvaluator", logger=logger)
+
         self.llm = llm
-        self.logger = logger or logging.getLogger(__name__)
         self.template_manager = TemplateManager()
         self.template_name = template_name
 

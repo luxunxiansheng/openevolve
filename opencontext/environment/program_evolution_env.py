@@ -82,6 +82,12 @@ class ProgramEvolutionEnv(gym.Env):
         step_start_time = time.time()
         self.total_steps += 1
 
+        # Validate action type first
+        if not isinstance(action, EvolutionAction):
+            error_msg = f"Invalid action type: {type(action)}. Must be EvolutionAction."
+            self.logger.error("Invalid action type", extra={"action_type": str(type(action))})
+            return self._create_error_response(error_msg)
+
         self.logger.info(
             "Evolution step started",
             extra={
@@ -91,11 +97,6 @@ class ProgramEvolutionEnv(gym.Env):
                 "action_mode": action.mode.value,
             },
         )
-
-        if not isinstance(action, EvolutionAction):
-            error_msg = f"Invalid action type: {type(action)}. Must be EvolutionAction."
-            self.logger.error("Invalid action type", extra={"action_type": str(type(action))})
-            return self._create_error_response(error_msg)
 
         try:
             # Generate code using evolution engine

@@ -9,7 +9,7 @@ import os
 import tempfile
 import time
 import uuid
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 
@@ -36,6 +36,7 @@ class ExecutionEvaluator(BaseEvaluator):
         status_check_interval: int = 1,
         job_stop_wait_time: int = 30,
         deletion_wait_time: int = 2,
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize ExecutionEvaluator with critic program and Ray cluster configuration.
@@ -47,7 +48,11 @@ class ExecutionEvaluator(BaseEvaluator):
                 status_check_interval: Interval between status checks in seconds
                 job_stop_wait_time: Time to wait for job stop
                 deletion_wait_time: Time to wait before deletion
+                logger: Optional logger instance
         """
+        # Initialize parent class with logger
+        super().__init__(name="ExecutionEvaluator", logger=logger)
+
         self.critic_program_path = critic_program_path
         self.ray_head_ip = ray_head_ip
         self.job_timeout_seconds = job_timeout_seconds
@@ -61,7 +66,7 @@ class ExecutionEvaluator(BaseEvaluator):
         # Cache for critic program content
         self.critic_program = None
 
-        logger.info(
+        self.logger.info(
             f"ExecutionEvaluator initialized with critic: {critic_program_path}, Ray head: {ray_head_ip}"
         )
 
